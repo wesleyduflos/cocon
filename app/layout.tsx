@@ -29,6 +29,14 @@ export const metadata: Metadata = {
     statusBarStyle: "black-translucent",
     title: "Cocon",
   },
+  icons: {
+    // app/favicon.ico est servi automatiquement par Next.js — on déclare
+    // simplement les icônes Apple/PWA additionnelles.
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
+    other: [
+      { rel: "mask-icon", url: "/icons/logo-mark.png", color: "#FF6B24" },
+    ],
+  },
 };
 
 export const viewport: Viewport = {
