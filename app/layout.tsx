@@ -1,5 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Funnel_Display, Funnel_Sans } from "next/font/google";
+
+import { AuthProvider } from "@/hooks/use-auth";
+
 import "./globals.css";
 
 const funnelDisplay = Funnel_Display({
@@ -46,7 +49,9 @@ export default function RootLayout({
       lang="fr"
       className={`dark ${funnelDisplay.variable} ${funnelSans.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   );
 }
