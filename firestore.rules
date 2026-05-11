@@ -23,13 +23,47 @@ service cloud.firestore {
       allow write: if request.auth.uid == userId;
     }
 
-    // Households : lecture pour membres, création par tout authentifié, écriture par owner
+    // Invitations : un user authentifié peut lire une invitation dont il
+    // connaît le token (sécurité par le secret = UUIDv4, 122 bits d'entropie).
+    // Création réservée au membre du cocon ciblé. Update permis aux
+    // authentifiés (pour marquer 'accepted' lors de l'acceptation).
+    match /invitations/{token} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated()
+                    && request.resource.data.invitedBy == request.auth.uid
+                    && isMemberOf(request.resource.data.householdId);
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated()
+                    && resource.data.invitedBy == request.auth.uid;
+    }
+
+    // Households
     match /households/{householdId} {
       allow read: if isMemberOf(householdId);
-      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
-      allow update, delete: if isOwnerOf(householdId);
+      allow create: if isAuthenticated()
+                    && request.resource.data.ownerId == request.auth.uid;
+      // Owner : tous droits. Sinon, un user authentifié peut ajouter
+      // SON propre uid à memberIds (pour accepter une invitation), sans
+      // pouvoir modifier autre chose.
+      allow update: if isOwnerOf(householdId)
+                    || (
+                      isAuthenticated()
+                      && !(request.auth.uid in resource.data.memberIds)
+                      && request.auth.uid in request.resource.data.memberIds
+                      && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberIds'])
+                    );
+      allow delete: if isOwnerOf(householdId);
 
-      // Sous-collections : tous les membres peuvent lire/écrire
+      // Sous-collection members : un user peut créer son propre doc member,
+      // les autres opérations sont réservées aux membres du cocon.
+      match /members/{memberId} {
+        allow read: if isMemberOf(householdId);
+        allow create: if isAuthenticated() && memberId == request.auth.uid;
+        allow update, delete: if isOwnerOf(householdId) || memberId == request.auth.uid;
+      }
+
+      // Sous-collections génériques (tasks, shopping-items, etc.) :
+      // lecture/écriture réservée aux membres du cocon.
       match /{collection}/{document=**} {
         allow read, write: if isMemberOf(householdId);
       }

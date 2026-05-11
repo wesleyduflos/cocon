@@ -63,6 +63,32 @@ export interface HouseholdMember {
   displayNameInHousehold?: string;
 }
 
+// ---------- Invitation ----------
+
+export type InvitationStatus = "pending" | "accepted" | "expired";
+
+/**
+ * Documents dans la collection top-level `invitations/{token}`.
+ * On diverge de l'archi originale (qui prévoyait une map dans household)
+ * car Firestore ne sait pas query une map keyée par token pour retrouver
+ * un cocon. Une collection top-level rend `getDoc(invitationDoc(token))`
+ * trivial. La sécurité repose sur le secret du token (UUIDv4 = 122 bits
+ * d'entropie). Voir `firestore.rules` pour les contrôles d'accès.
+ */
+export interface Invitation {
+  token: string;
+  householdId: string;
+  householdName: string; // dénormalisé pour affichage rapide à l'arrivée
+  ownerDisplayName: string; // dénormalisé : « Tu rejoins le cocon de Wesley »
+  email: string; // email du destinataire (informatif, pas vérifié)
+  invitedBy: string; // uid de l'invitant
+  invitedAt: Timestamp;
+  expiresAt: Timestamp; // +7 jours par défaut
+  status: InvitationStatus;
+  acceptedBy?: string;
+  acceptedAt?: Timestamp;
+}
+
 // ---------- Task ----------
 
 export type TaskStatus = "pending" | "done" | "cancelled";

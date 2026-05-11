@@ -1,9 +1,33 @@
 "use client";
 
+import { signOut } from "firebase/auth";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+
 import { useAuth } from "@/hooks/use-auth";
+import { auth } from "@/lib/firebase/client";
+import { getHouseholdsOfUser } from "@/lib/firebase/firestore";
+import type { Household, WithId } from "@/types/cocon";
 
 export default function DashboardPage() {
+  const router = useRouter();
   const { user } = useAuth();
+  const [household, setHousehold] = useState<WithId<Household> | null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    getHouseholdsOfUser(user.uid)
+      .then((households) => {
+        if (cancelled) return;
+        setHousehold(households[0] ?? null);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   const today = new Date().toLocaleDateString("fr-FR", {
     weekday: "long",
@@ -13,6 +37,11 @@ export default function DashboardPage() {
 
   const firstName =
     user?.displayName?.split(" ")[0] ?? user?.email?.split("@")[0] ?? "toi";
+
+  async function handleSignOut() {
+    await signOut(auth);
+    router.replace("/login");
+  }
 
   return (
     <main className="flex flex-1 flex-col items-center justify-center px-6 py-16">
@@ -24,9 +53,19 @@ export default function DashboardPage() {
           <h1 className="font-display text-[28px] font-semibold leading-[1.05]">
             Bonjour <span className="greeting-gradient">{firstName}</span>
           </h1>
-          <p className="text-[0.9375rem] text-muted-foreground leading-[1.5]">
-            Sprint 1 en cours. Le cocon démarre.
-          </p>
+          {household ? (
+            <p className="text-[0.9375rem] text-muted-foreground leading-[1.5]">
+              {household.emoji ? `${household.emoji} ` : ""}
+              <span className="text-foreground">{household.name}</span>
+              {household.memberIds.length > 1
+                ? ` · ${household.memberIds.length} membres`
+                : " · juste toi pour l'instant"}
+            </p>
+          ) : (
+            <p className="text-[0.9375rem] text-muted-foreground leading-[1.5]">
+              Sprint 1 en cours. Le cocon démarre.
+            </p>
+          )}
         </section>
 
         <section className="flex flex-col gap-3">
@@ -37,14 +76,38 @@ export default function DashboardPage() {
             <div className="w-5 h-5 rounded-[6px] border-[1.5px] border-[#5C3D2C]" />
             <div className="flex-1 flex flex-col">
               <span className="text-[15px] font-medium">
-                Authentification email-first
+                Création / rejoindre cocon
               </span>
               <span className="text-[12px] text-muted-foreground">
-                Sous-tâche 3 · aujourd&apos;hui
+                Sous-tâche 4 · aujourd&apos;hui
               </span>
             </div>
             <span className="w-[7px] h-[7px] rounded-full glow-dot" />
           </article>
+        </section>
+
+        {household && household.memberIds.length < 2 ? (
+          <section className="flex flex-col gap-3">
+            <Link
+              href="/invite"
+              className="rounded-[12px] bg-primary text-primary-foreground font-sans font-semibold text-[15px] px-[18px] py-3 shadow-[0_0_20px_rgba(255,107,36,0.35)] hover:bg-[var(--primary-hover)] transition-colors text-center"
+            >
+              Inviter quelqu&apos;un →
+            </Link>
+            <p className="text-[12px] text-foreground-faint text-center">
+              Tu es seul·e dans ton cocon. Génère un lien à partager.
+            </p>
+          </section>
+        ) : null}
+
+        <section className="flex justify-center pt-4">
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="text-[12px] text-foreground-faint hover:text-muted-foreground transition-colors"
+          >
+            Se déconnecter
+          </button>
         </section>
       </div>
     </main>

@@ -7,9 +7,13 @@ import {
   type Timestamp,
   Timestamp as FirestoreTimestamp,
   addDoc,
+  arrayUnion,
   collection,
   doc,
+  getDoc,
+  getDocs,
   query,
+  runTransaction,
   serverTimestamp,
   setDoc,
   updateDoc,
@@ -20,8 +24,10 @@ import {
   DEFAULT_USER_PREFERENCES,
   type Household,
   type HouseholdMember,
+  type Invitation,
   type Task,
   type User,
+  type WithId,
 } from "@/types/cocon";
 
 import { db } from "./client";
@@ -45,6 +51,7 @@ export const userConverter = makeConverter<User>();
 export const householdConverter = makeConverter<Household>();
 export const householdMemberConverter = makeConverter<HouseholdMember>();
 export const taskConverter = makeConverter<Task>();
+export const invitationConverter = makeConverter<Invitation>();
 
 /* =========================================================================
    References typées
@@ -106,6 +113,14 @@ export function householdTaskDoc(
     "tasks",
     taskId,
   ).withConverter(taskConverter);
+}
+
+export function invitationsCollection(): CollectionReference<Invitation> {
+  return collection(db, "invitations").withConverter(invitationConverter);
+}
+
+export function invitationDoc(token: string): DocumentReference<Invitation> {
+  return doc(db, "invitations", token).withConverter(invitationConverter);
 }
 
 /* =========================================================================
@@ -220,6 +235,120 @@ export async function completeTask(
 }
 
 /* =========================================================================
+   Invitations
+   ========================================================================= */
+
+const INVITATION_TTL_DAYS = 7;
+
+export interface CreateInvitationInput {
+  householdId: string;
+  householdName: string;
+  ownerDisplayName: string;
+  email: string;
+  invitedBy: string;
+}
+
+/**
+ * Crée une invitation à rejoindre un cocon. Le `token` est généré côté
+ * client (UUIDv4) et utilisé comme ID du document Firestore.
+ * Retourne le token généré.
+ */
+export async function createInvitation(
+  input: CreateInvitationInput,
+): Promise<string> {
+  const token = crypto.randomUUID();
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + INVITATION_TTL_DAYS * 24 * 60 * 60 * 1000);
+
+  await setDoc(invitationDoc(token), {
+    token,
+    householdId: input.householdId,
+    householdName: input.householdName,
+    ownerDisplayName: input.ownerDisplayName,
+    email: input.email,
+    invitedBy: input.invitedBy,
+    invitedAt: serverTimestamp() as unknown as Timestamp,
+    expiresAt: FirestoreTimestamp.fromDate(expiresAt),
+    status: "pending",
+  });
+
+  return token;
+}
+
+export async function getInvitation(token: string): Promise<Invitation | null> {
+  const snap = await getDoc(invitationDoc(token));
+  return snap.exists() ? snap.data() : null;
+}
+
+export interface AcceptInvitationInput {
+  token: string;
+  userId: string;
+}
+
+/**
+ * Accepte une invitation : ajoute le user à la liste des membres du cocon
+ * et marque l'invitation comme acceptée. Tout en transaction pour garantir
+ * la cohérence (ou les deux écritures réussissent, ou aucune).
+ */
+export async function acceptInvitation(
+  input: AcceptInvitationInput,
+): Promise<{ householdId: string }> {
+  return runTransaction(db, async (tx) => {
+    const inviteRef = invitationDoc(input.token);
+    const inviteSnap = await tx.get(inviteRef);
+    if (!inviteSnap.exists()) {
+      throw new Error("Cette invitation n'existe pas.");
+    }
+    const invitation = inviteSnap.data();
+    if (invitation.status !== "pending") {
+      throw new Error("Cette invitation a déjà été utilisée ou expirée.");
+    }
+    if (invitation.expiresAt.toMillis() < Date.now()) {
+      throw new Error("Cette invitation est expirée.");
+    }
+
+    const householdRef = householdDoc(invitation.householdId);
+    const memberRef = householdMemberDoc(invitation.householdId, input.userId);
+
+    tx.update(householdRef, {
+      memberIds: arrayUnion(input.userId),
+    });
+
+    tx.set(memberRef, {
+      userId: input.userId,
+      role: "member",
+      joinedAt: serverTimestamp() as unknown as Timestamp,
+    });
+
+    tx.update(inviteRef, {
+      status: "accepted",
+      acceptedBy: input.userId,
+      acceptedAt: serverTimestamp() as unknown as Timestamp,
+    });
+
+    return { householdId: invitation.householdId };
+  });
+}
+
+/* =========================================================================
+   Queries de cocons de l'utilisateur
+   ========================================================================= */
+
+export function householdsOfUserQuery(userId: string): Query<Household> {
+  return query(
+    householdsCollection(),
+    where("memberIds", "array-contains", userId),
+  );
+}
+
+export async function getHouseholdsOfUser(
+  userId: string,
+): Promise<WithId<Household>[]> {
+  const snap = await getDocs(householdsOfUserQuery(userId));
+  return snap.docs.map((d) => ({ ...d.data(), id: d.id }));
+}
+
+/* =========================================================================
    Queries pré-construites (utilisées par les hooks + écrans)
    ========================================================================= */
 
@@ -285,4 +414,16 @@ export function isDueToday(
  */
 export function timestampFromDate(date: Date): Timestamp {
   return FirestoreTimestamp.fromDate(date);
+}
+
+/**
+ * Une invitation est expirée si sa date d'expiration est dans le passé,
+ * indépendamment de son statut (un token expiré reste expiré même si
+ * `status === 'pending'`).
+ */
+export function isInvitationExpired(
+  invitation: Pick<Invitation, "expiresAt">,
+  now: Date,
+): boolean {
+  return invitation.expiresAt.toMillis() < now.getTime();
 }

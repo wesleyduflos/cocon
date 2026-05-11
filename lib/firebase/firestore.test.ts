@@ -1,7 +1,7 @@
 import { Timestamp } from "firebase/firestore";
 import { describe, expect, it, vi } from "vitest";
 
-import type { Household, Task, User } from "@/types/cocon";
+import type { Household, Invitation, Task, User } from "@/types/cocon";
 
 // On mocke `./client` pour éviter d'initialiser Firebase au moment de l'import.
 // Les converters et helpers purs n'utilisent pas `db` au top-level, donc un
@@ -15,7 +15,9 @@ vi.mock("./client", () => ({
 
 import {
   householdConverter,
+  invitationConverter,
   isDueToday,
+  isInvitationExpired,
   isOverdue,
   taskConverter,
   timestampFromDate,
@@ -112,6 +114,29 @@ describe("timestampFromDate", () => {
   });
 });
 
+describe("isInvitationExpired", () => {
+  const now = new Date("2026-05-11T10:00:00Z");
+
+  it("returns false when expiresAt is in the future", () => {
+    const invitation = {
+      expiresAt: timestampFromDate(new Date("2026-05-18T10:00:00Z")),
+    };
+    expect(isInvitationExpired(invitation, now)).toBe(false);
+  });
+
+  it("returns true when expiresAt is in the past", () => {
+    const invitation = {
+      expiresAt: timestampFromDate(new Date("2026-05-04T10:00:00Z")),
+    };
+    expect(isInvitationExpired(invitation, now)).toBe(true);
+  });
+
+  it("returns true when expiresAt equals exactly now (boundary)", () => {
+    const invitation = { expiresAt: timestampFromDate(now) };
+    expect(isInvitationExpired(invitation, now)).toBe(false); // strictement <, donc pile à l'heure n'est pas expiré
+  });
+});
+
 /* =========================================================================
    Converters (round-trip data ↔ DocumentData)
    On simule un QueryDocumentSnapshot avec un objet `.data()`.
@@ -162,6 +187,29 @@ describe("householdConverter", () => {
     );
 
     expect(deserialized).toEqual(household);
+  });
+});
+
+describe("invitationConverter", () => {
+  it("round-trips an Invitation document", () => {
+    const invitation: Invitation = {
+      token: "550e8400-e29b-41d4-a716-446655440000",
+      householdId: "hh-cocon-1",
+      householdName: "Cocon Magnolia",
+      ownerDisplayName: "Wesley",
+      email: "camille@example.com",
+      invitedBy: "uid-wesley",
+      invitedAt: timestampFromDate(new Date("2026-05-11T10:00:00Z")),
+      expiresAt: timestampFromDate(new Date("2026-05-18T10:00:00Z")),
+      status: "pending",
+    };
+
+    const serialized = invitationConverter.toFirestore(invitation);
+    const deserialized = invitationConverter.fromFirestore(
+      fakeSnapshot(serialized),
+    );
+
+    expect(deserialized).toEqual(invitation);
   });
 });
 

@@ -4,6 +4,7 @@ import { getDoc } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+import { retrievePendingInviteToken } from "@/lib/auth/invite-storage";
 import {
   completeMagicLink,
   isMagicLink,
@@ -42,7 +43,10 @@ export default function CompleteLoginPage() {
             displayName: fbUser.email?.split("@")[0] ?? "Membre du cocon",
           });
         }
-        router.replace("/onboarding");
+        // Si l'utilisateur arrivait via un lien /join/{token}, on continue
+        // le flow directement vers l'acceptation au lieu de l'onboarding.
+        const pendingToken = retrievePendingInviteToken();
+        router.replace(pendingToken ? `/join/${pendingToken}` : "/onboarding");
       } catch (err) {
         setStatus("error");
         setErrorMessage(
