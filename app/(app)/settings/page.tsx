@@ -45,10 +45,10 @@ const CARDS: SettingsCard[] = [
     available: false,
   },
   {
-    href: "/settings",
+    href: "/settings/connectors",
     icon: Plug,
     title: "Connecteurs",
-    available: false,
+    available: true,
   },
   {
     href: "/settings",

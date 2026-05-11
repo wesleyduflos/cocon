@@ -21,6 +21,19 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isAuthenticated();
       allow write: if request.auth.uid == userId;
+
+      // Intégrations tierces (Google Calendar refresh token, etc.) — accès
+      // strictement limité au propriétaire du compte. Les autres membres
+      // du cocon n'ont JAMAIS accès à ces docs (contrairement aux tasks).
+      match /integrations/{integrationId} {
+        allow read, write: if request.auth.uid == userId;
+      }
+
+      // FCM tokens : pareil, propriétaire uniquement. Lectures par Cloud
+      // Functions via le SDK Admin (qui bypasse les rules).
+      match /fcmTokens/{tokenId} {
+        allow read, write: if request.auth.uid == userId;
+      }
     }
 
     // Invitations : un user authentifié peut lire une invitation dont il
