@@ -1,0 +1,192 @@
+@import "tailwindcss";
+
+/* =========================================================================
+   Brique Flamme — design tokens
+   Source de vérité : docs/brique-flamme-tokens.md
+   Le mode sombre est appliqué via la classe `.dark` sur <html>
+   ========================================================================= */
+
+:root {
+  /* Mode clair (déclinaison) */
+  --background: #FBF4E5;
+  --foreground: #1A0D04;
+
+  --card: #FFFFFF;
+  --card-foreground: #1A0D04;
+
+  --popover: #FFFFFF;
+  --popover-foreground: #1A0D04;
+
+  --primary: #E5520F;
+  --primary-hover: #FF6B24;
+  --primary-foreground: #FFF4DC;
+
+  --secondary: #DB9512;
+  --secondary-foreground: #1A0D04;
+
+  --muted: #F2E8D2;
+  --muted-foreground: #8A6A4E;
+  --foreground-faint: #B89880;
+
+  --accent: #F2E8D2;
+  --accent-foreground: #1A0D04;
+
+  --destructive: #C8243E;
+  --destructive-foreground: #FFFFFF;
+
+  --border: #E8D7B8;
+  --border-subtle: #F2E8D2;
+
+  --surface: #FFFFFF;
+  --surface-elevated: #FFFFFF;
+
+  --input: #F2E8D2;
+  --ring: #E5520F;
+  --highlight: #F5B829;
+
+  --radius: 0.75rem;
+}
+
+.dark {
+  /* Mode sombre — Brique Flamme par défaut */
+  --background: #100604;
+  --foreground: #FFF4DC;
+
+  --card: #2D1813;
+  --card-foreground: #FFF4DC;
+
+  --popover: #3A2018;
+  --popover-foreground: #FFF4DC;
+
+  --primary: #FF6B24;
+  --primary-hover: #FF7C3D;
+  --primary-foreground: #100604;
+
+  --secondary: #FFC845;
+  --secondary-foreground: #100604;
+
+  --muted: #2D1813;
+  --muted-foreground: #B08866;
+  --foreground-faint: #7A5D45;
+
+  --accent: #432A1F;
+  --accent-foreground: #FFF4DC;
+
+  --destructive: #E5374D;
+  --destructive-foreground: #FFF4DC;
+
+  --border: #432A1F;
+  --border-subtle: #2D1813;
+
+  --surface: #2D1813;
+  --surface-elevated: #3A2018;
+
+  --input: #2D1813;
+  --ring: #FF6B24;
+  --highlight: #FFE066;
+}
+
+/* =========================================================================
+   Mapping vers les utilities Tailwind v4 via @theme
+   ========================================================================= */
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-highlight: var(--highlight);
+  --color-surface: var(--surface);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-foreground-faint: var(--foreground-faint);
+
+  --font-sans: var(--font-funnel-sans);
+  --font-display: var(--font-funnel-display);
+
+  --radius-sm: calc(var(--radius) - 6px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 8px);
+}
+
+/* =========================================================================
+   Styles de base
+   ========================================================================= */
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-funnel-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, .font-display {
+  font-family: var(--font-funnel-display), system-ui, sans-serif;
+  letter-spacing: -0.025em;
+}
+
+/* Atmosphère mode sombre : radial gradient + grain (marqueurs identitaires) */
+html.dark body {
+  background-image:
+    radial-gradient(ellipse 700px 380px at 10% 0%, rgba(255, 107, 36, 0.18) 0, transparent 55%),
+    radial-gradient(ellipse 550px 300px at 100% 100%, rgba(255, 200, 69, 0.12) 0, transparent 55%);
+  background-attachment: fixed;
+}
+
+html.dark body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image: radial-gradient(circle at 1px 1px, rgba(255, 232, 200, 0.04) 1px, transparent 0);
+  background-size: 3px 3px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Le contenu doit passer au-dessus du grain */
+body > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* =========================================================================
+   Composants utilitaires Brique Flamme
+   ========================================================================= */
+
+.greeting-gradient {
+  background: linear-gradient(90deg, #FF6B24 0%, #FFC845 60%, #FFE066 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 0 16px rgba(255, 107, 36, 0.35));
+}
+
+.glow-dot {
+  background: var(--primary);
+  box-shadow: 0 0 16px rgba(255, 107, 36, 0.85);
+}

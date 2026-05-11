@@ -1,0 +1,29 @@
+{
+  "name": "cocon-functions",
+  "version": "0.1.0",
+  "description": "Cloud Functions for Cocon (Firebase gen 2)",
+  "private": true,
+  "main": "lib/index.js",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "lint": "eslint --max-warnings=0 \"src/**/*.ts\"",
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "serve": "pnpm run build && firebase emulators:start --only functions",
+    "shell": "pnpm run build && firebase functions:shell",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.2",
+    "firebase-functions": "^6.4.0"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^8.20.0",
+    "@typescript-eslint/parser": "^8.20.0",
+    "eslint": "^9.18.0",
+    "typescript": "^5.7.3"
+  }
+}

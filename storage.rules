@@ -1,0 +1,20 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isMemberOf(householdId) {
+      return isAuthenticated() &&
+             request.auth.uid in firestore.get(/databases/(default)/documents/households/$(householdId)).data.memberIds;
+    }
+
+    // Tous les fichiers sont scopés par cocon : photos packaging, manuels, attachments
+    match /households/{householdId}/{allPaths=**} {
+      allow read, write: if isMemberOf(householdId);
+    }
+  }
+}

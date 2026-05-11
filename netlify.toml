@@ -1,0 +1,11 @@
+[build]
+  command = "pnpm build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "22"
+  NPM_FLAGS = "--version" # force Netlify à utiliser pnpm via pnpm-lock.yaml
+
+# Le runtime Next.js de Netlify (@netlify/plugin-nextjs) est appliqué automatiquement.
+# Les variables d'environnement publiques (NEXT_PUBLIC_FIREBASE_*) doivent être
+# configurées dans Site settings > Environment variables sur le dashboard Netlify.
