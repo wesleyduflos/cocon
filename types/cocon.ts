@@ -184,6 +184,30 @@ export interface Attachment {
   createdBy: string;
 }
 
+// ---------- Stock ----------
+
+export type StockLevel = "full" | "half" | "low" | "empty";
+
+export interface StockHistoryEntry {
+  level: StockLevel;
+  changedAt: Timestamp;
+  changedBy: string;
+}
+
+export interface StockItem {
+  name: string;
+  emoji?: string;
+  level: StockLevel;
+  lastRenewedAt?: Timestamp;
+  predictedNextRenewalAt?: Timestamp;
+  /** Pour le couplage courses ↔ stocks : id d'un quick-add-item. */
+  linkedQuickAddItemId?: string;
+  /** Cappée à 50 entries, plus récente en premier. */
+  history: StockHistoryEntry[];
+  createdAt: Timestamp;
+  createdBy: string;
+}
+
 // ---------- Calendar event ----------
 
 export type CalendarSource = "local" | "google" | "outlook";

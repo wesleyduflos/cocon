@@ -32,11 +32,15 @@ import {
   type QuickAddItem,
   type ShoppingItem,
   type ShoppingRayon,
+  type StockItem,
+  type StockLevel,
   type Task,
   type User,
   type UserPreferences,
   type WithId,
 } from "@/types/cocon";
+
+import { capHistory, predictNextRenewal, shouldAutoReorder } from "@/lib/stocks";
 
 import { db } from "./client";
 
@@ -64,6 +68,7 @@ export const calendarEventConverter = makeConverter<CalendarEvent>();
 export const shoppingItemConverter = makeConverter<ShoppingItem>();
 export const quickAddItemConverter = makeConverter<QuickAddItem>();
 export const attachmentConverter = makeConverter<Attachment>();
+export const stockItemConverter = makeConverter<StockItem>();
 
 /* =========================================================================
    References typées
@@ -216,6 +221,23 @@ export function attachmentsCollection(
     householdId,
     "attachments",
   ).withConverter(attachmentConverter);
+}
+
+export function stocksCollection(
+  householdId: string,
+): CollectionReference<StockItem> {
+  return collection(db, "households", householdId, "stocks").withConverter(
+    stockItemConverter,
+  );
+}
+
+export function stockDoc(
+  householdId: string,
+  stockId: string,
+): DocumentReference<StockItem> {
+  return doc(db, "households", householdId, "stocks", stockId).withConverter(
+    stockItemConverter,
+  );
 }
 
 /* =========================================================================
@@ -529,11 +551,26 @@ export async function checkShoppingItem(
   itemId: string,
   userId: string,
 ): Promise<void> {
+  // 1) Marquer comme acheté
   await updateDoc(shoppingItemDoc(householdId, itemId), {
     status: "bought",
     boughtAt: serverTimestamp() as unknown as Timestamp,
     boughtBy: userId,
   });
+
+  // 2) Si l'item est lié à un stock, repasser ce stock à 'full'.
+  //    On lit le doc après l'update pour récupérer stockItemId (l'écriture
+  //    précédente est déjà committée donc on a la donnée à jour).
+  const snap = await getDoc(shoppingItemDoc(householdId, itemId));
+  const stockItemId = snap.data()?.stockItemId;
+  if (stockItemId) {
+    try {
+      await updateStockLevel(householdId, stockItemId, "full", userId);
+    } catch {
+      // Soft-fail : si le stock a été supprimé entre-temps, on n'empêche
+      // pas la complétion du shopping-item.
+    }
+  }
 }
 
 export async function uncheckShoppingItem(
@@ -563,6 +600,126 @@ export async function updateShoppingItemNotes(
     notes: notes.trim() || deleteField(),
     noteSeenBy: deleteField(), // reset les "vues" à chaque édition
   });
+}
+
+/* =========================================================================
+   Stocks
+   ========================================================================= */
+
+export interface CreateStockInput {
+  name: string;
+  level: StockLevel;
+  createdBy: string;
+  emoji?: string;
+  linkedQuickAddItemId?: string;
+}
+
+export async function createStockItem(
+  householdId: string,
+  input: CreateStockInput,
+): Promise<string> {
+  const now = serverTimestamp() as unknown as Timestamp;
+  const ref = await addDoc(stocksCollection(householdId), {
+    name: input.name,
+    emoji: input.emoji,
+    level: input.level,
+    linkedQuickAddItemId: input.linkedQuickAddItemId,
+    history: [],
+    lastRenewedAt: input.level === "full" ? now : undefined,
+    createdBy: input.createdBy,
+    createdAt: now,
+  });
+  return ref.id;
+}
+
+/**
+ * Met à jour le niveau d'un stock :
+ * - append à `history` (capped 50)
+ * - si new level === "full" : pose lastRenewedAt
+ * - recalcule predictedNextRenewalAt
+ * - si new level passe à low/empty (et que c'était pas déjà le cas) ET un
+ *   linkedQuickAddItem est défini → auto-ajoute aux courses avec
+ *   fromStockAuto=true et stockItemId=<this stock id>.
+ *   N'auto-ajoute pas s'il y a déjà un shopping-item pending pour ce stock.
+ */
+export async function updateStockLevel(
+  householdId: string,
+  stockId: string,
+  newLevel: StockLevel,
+  userId: string,
+): Promise<void> {
+  const ref = stockDoc(householdId, stockId);
+
+  let triggerAutoReorder = false;
+  let linkedQuickAddItemId: string | undefined;
+  let stockSnapshot: StockItem | undefined;
+
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) {
+      throw new Error("Stock introuvable.");
+    }
+    const data = snap.data();
+    stockSnapshot = data;
+
+    const newEntry = {
+      level: newLevel,
+      changedAt: FirestoreTimestamp.now(),
+      changedBy: userId,
+    };
+    const newHistory = capHistory([newEntry, ...(data.history ?? [])], 50);
+
+    const update: Partial<StockItem> = {
+      level: newLevel,
+      history: newHistory,
+    };
+    if (newLevel === "full") {
+      update.lastRenewedAt = FirestoreTimestamp.now();
+    }
+    const predicted = predictNextRenewal(newHistory);
+    if (predicted) {
+      update.predictedNextRenewalAt = FirestoreTimestamp.fromDate(predicted);
+    }
+
+    triggerAutoReorder = shouldAutoReorder(data.level, newLevel);
+    linkedQuickAddItemId = data.linkedQuickAddItemId;
+
+    tx.update(ref, update);
+  });
+
+  if (triggerAutoReorder && linkedQuickAddItemId && stockSnapshot) {
+    // Vérifier qu'on n'a pas déjà un pending shopping-item pour ce stock
+    const existing = await getDocs(
+      query(
+        shoppingItemsCollection(householdId),
+        where("stockItemId", "==", stockId),
+        where("status", "==", "pending"),
+      ),
+    );
+    if (existing.empty) {
+      // Charger le quick-add pour récupérer rayon par défaut
+      const qaSnap = await getDoc(
+        quickAddItemDoc(householdId, linkedQuickAddItemId),
+      );
+      const qa = qaSnap.data();
+      await createShoppingItem(householdId, {
+        name: stockSnapshot.name,
+        emoji: stockSnapshot.emoji,
+        rayon: qa?.defaultRayon ?? "Autre",
+        unit: qa?.defaultUnit,
+        addedBy: userId,
+        fromStockAuto: true,
+        stockItemId: stockId,
+      });
+    }
+  }
+}
+
+export async function deleteStockItem(
+  householdId: string,
+  stockId: string,
+): Promise<void> {
+  await deleteDoc(stockDoc(householdId, stockId));
 }
 
 /* =========================================================================
