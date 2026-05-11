@@ -104,7 +104,30 @@ Firebase Messaging exige un Service Worker à un path fixe (`/firebase-messaging
 
 Ainsi le SW est généré à la build avec la bonne config et toujours synchro avec le client.
 
-## 14. Passkeys WebAuthn — report sprint 3
+## 15. WebAuthn @simplewebauthn types côté Cloud Functions
+
+Le tsconfig functions/ a `lib: ["es2022"]` sans DOM. Donc `AuthenticatorTransport` (DOM type) n'est pas dispo. Utiliser `AuthenticatorTransportFuture` exporté par `@simplewebauthn/server` à la place — c'est le superset officiel et il est forwarded au consommateur.
+
+## 16. Recherche Firestore client-side via tokens
+
+Pour la recherche full-text sur les MemoryEntry (sprint 3), on a opté pour :
+1. Tokens calculés à l'écriture : `searchTokens: string[]` (NFD + lowercase + tokenize + dedup)
+2. Match côté client : prefix match sur les tokens — AND sur tous les tokens de la query
+
+Limites Firestore à connaître si on passe au matching côté serveur plus tard :
+- `array-contains-any` est limité à **10 valeurs** dans la liste de match
+- `array-contains` ne supporte qu'un seul `==` ou `array-contains` par query
+- Une query qui combine plusieurs filtres sur le même array nécessite plusieurs round-trips
+
+Pour 1000+ entries, switcher sur Algolia ou Typesense est plus efficient.
+
+## 17. Cap d'un array dans un document Firestore
+
+Firestore n'a pas de mécanisme natif pour capper un array. Pattern utilisé pour `stocks.history` (max 50 entries) : capping côté client via le helper pur `capHistory(arr, 50)` avant chaque write. Slice depuis le début (plus récent en premier) garde le bon ordre.
+
+Alternative : sous-collection avec auto-purge via Cloud Function trigger sur create — overkill pour 50 entries.
+
+## 14. Passkeys WebAuthn — réglé sprint 3
 
 Intégration native passkeys avec Firebase Auth Web SDK (v10) nécessite côté serveur :
 1. Cloud Function `generatePasskeyChallenge` pour register et login (challenge cryptographique)

@@ -23,6 +23,20 @@ Identité visuelle **Brique Flamme** (dark par défaut, light en option) · poli
 - Settings : profil, cocon, apparence (dark/light), compte
 - Bottom nav 5 onglets · sync temps réel `onSnapshot` · PWA
 
+### Sprint 3 (livré)
+- ✅ **Passkeys WebAuthn** : registration + login via `@simplewebauthn` côté Cloud Functions, Custom Token Firebase Auth pour signin. UI dans `/login` (lookup email → passkey prioritaire si dispo) et `/settings/profile` (listing + register + delete).
+- ✅ **Module Courses** : grille des 8 essentiels du foyer, cards par rayon pliables, création avec saisie naturelle IA (`parseShoppingItem`), notes contextuelles, **bottom nav onglet Courses connecté**.
+- ✅ **Mode supermarché** : vue duale focus rayon courant + minimap des autres rayons, haptic vibration au check, célébration en fin de session, couplage automatique avec les stocks.
+- ✅ **Module Stocks** : 4 niveaux (plein/entamé/bas/épuisé), couplage bi-directionnel avec courses (auto-ajout aux courses quand stock bas, auto-renouvellement à `full` quand l'article lié est acheté en mode supermarché), prédiction simple de renouvellement (rolling 3 derniers intervalles).
+- ✅ **Module Mémoire** : 6 types (code/object/contact/manual/warranty/note) avec champs adaptés au type, recherche tokenisée client-side (NFD + prefix match), biométrie WebAuthn pour révéler les codes sensibles, copier presse-papier d'un tap.
+- ✅ **Préparations** : 7 templates seedés par défaut, lancement génère N tâches avec `checklistRunId`, page `/preparations`.
+- ✅ **Transversaux** : drawer Plus refondu (Mémoire / Stocks / Préparations actifs ; Journal / Assistant IA en « Bientôt »), sous-page `/settings/cocon` étendue avec compteurs des 6 modules + reseed quick-add et templates (owner only).
+
+Notes :
+- Pour activer les passkeys, déployer les Cloud Functions (`firebase deploy --only functions`)
+- L'IA `parseShoppingItem` utilise Haiku 4.5 (~0,0003 €/appel)
+- 118 tests passants, ~36 routes, **30 commits** sur le sprint
+
 ### Sprint 2 (livré)
 - ✅ **Récurrence des tâches** (RRULE iCal via `rrule`) : presets jours/semaines/mois, picker de jours pour weekly, jour du mois pour monthly. À chaque complétion d'une tâche récurrente, on clone le doc en `done` figé pour l'historique et on avance la `dueDate` du doc actif sur la prochaine occurrence.
 - ✅ **Module Calendrier** (`screens-spec §3.6` Variante 1) : mini-mois 6×7 avec dots colorés (primary pour les événements locaux, secondary pour les tâches duedate, highlight pour all-day), jour sélectionné, création + détail d'événements, intégration des tâches en read-only.
