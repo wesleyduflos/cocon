@@ -12,18 +12,25 @@ Next.js 16 (App Router · Turbopack) · TypeScript strict · Tailwind v4 · Fire
 
 Identité visuelle **Brique Flamme** (dark par défaut, light en option) · polices Funnel Display + Funnel Sans.
 
-## État du projet — fin du sprint 1
+## État du projet — fin du sprint 2
 
-- ✅ Auth email-first via magic link Firebase
-- ✅ Création / rejoindre cocon via lien d'invitation (UUIDv4, 7 jours)
-- ✅ Module Tasks complet : CRUD, assignation, échéance, complétion avec toast undo, filtres par assigné, groupage temporel (Aujourd'hui / Cette semaine / Plus tard / Fait récemment)
-- ✅ Dashboard : greeting personnalisé, résumé, tâches du jour, activité récente, avatars membres
-- ✅ Saisie naturelle de tâche via Cloud Function `parseTask` (Claude Haiku 4.5 avec prompt caching)
-- ✅ Settings : profil, cocon, apparence (dark/light), compte
-- ✅ Bottom nav 5 onglets · états vides · sync temps réel via `onSnapshot`
-- ✅ PWA manifest + favicon
+### Sprint 1 (clos)
+- Auth email-first via magic link Firebase
+- Création / rejoindre cocon via lien d'invitation (UUIDv4, 7 jours)
+- Module Tasks : CRUD, assignation, échéance, toast undo, filtres + groupage temporel
+- Dashboard avec greeting, résumé, tâches du jour, activité récente, avatars membres
+- Saisie naturelle via Cloud Function `parseTask` (Claude Haiku 4.5)
+- Settings : profil, cocon, apparence (dark/light), compte
+- Bottom nav 5 onglets · sync temps réel `onSnapshot` · PWA
 
-Coût de fonctionnement : **~0,15 €/mois** sur le compte Anthropic, **0 €** sur Firebase et Netlify (largement sous les quotas gratuits).
+### Sprint 2 (livré)
+- ✅ **Récurrence des tâches** (RRULE iCal via `rrule`) : presets jours/semaines/mois, picker de jours pour weekly, jour du mois pour monthly. À chaque complétion d'une tâche récurrente, on clone le doc en `done` figé pour l'historique et on avance la `dueDate` du doc actif sur la prochaine occurrence.
+- ✅ **Module Calendrier** (`screens-spec §3.6` Variante 1) : mini-mois 6×7 avec dots colorés (primary pour les événements locaux, secondary pour les tâches duedate, highlight pour all-day), jour sélectionné, création + détail d'événements, intégration des tâches en read-only.
+- ✅ **OAuth Google Calendar** (read-only, Q2) : Cloud Functions `exchangeGoogleCode`/`syncGoogleCalendar`/`disconnectGoogle`, page `/settings/connectors`, refresh token isolé par owner (`users/{uid}/integrations/google`).
+- ✅ **Notifications push FCM** : Cloud Function `sendTaskReminder` (cron 60 min Europe/Paris) avec quiet hours, `sendNotificationTest` callable, sous-page `/settings/notifications`, Service Worker FCM généré dynamiquement par Next.js (config inlinée depuis env vars).
+- 🔜 **Passkeys WebAuthn** : reportées au sprint 3. Annonce visible dans `/login`. Voir `docs/feedback_firebase_gotchas.md §14` pour le plan d'attaque.
+
+Coût de fonctionnement : **~0,15 €/mois** sur Anthropic, **0 €** sur Firebase et Netlify (largement sous les quotas gratuits).
 
 ## Documentation
 
@@ -121,8 +128,24 @@ Remove-Item $tempFile -Force
 
 (Pour les bash users : équivalent `mktemp` + `firebase functions:secrets:set ... --data-file`.)
 
+## Variables d'env attendues
+
+| Var | Lieu | Bloc |
+|---|---|---|
+| `NEXT_PUBLIC_FIREBASE_*` (6) | Netlify + `.env.local` | Sprint 1 |
+| `NEXT_PUBLIC_GOOGLE_CLIENT_ID` | Netlify + `.env.local` | Sprint 2 (Google Calendar) |
+| `NEXT_PUBLIC_FCM_VAPID_PUBLIC_KEY` | Netlify + `.env.local` | Sprint 2 (FCM) |
+
+## Secrets Firebase Functions
+
+| Secret | Bloc | Set via |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | Sprint 1 (`parseTask`) | `firebase functions:secrets:set ANTHROPIC_API_KEY` |
+| `GOOGLE_CLIENT_ID` | Sprint 2 (Google Calendar) | idem |
+| `GOOGLE_CLIENT_SECRET` | Sprint 2 (Google Calendar) | idem |
+
 ## Roadmap des sprints
 
-Sprint 1 (clos) — fondations · Sprint 2 — récurrence + agenda + notifications · Sprint 3 — courses + stocks + mémoire + préparations · Sprint 4 — IA voix + journal + suggestions.
+Sprint 1 (clos) — fondations · **Sprint 2 (clos)** — récurrence + agenda + sync Google + push FCM · Sprint 3 — passkeys + courses + stocks + mémoire + préparations · Sprint 4 — IA voix + journal + suggestions.
 
 Voir [`docs/architecture-cocon.md`](./docs/architecture-cocon.md) §9 pour le détail.

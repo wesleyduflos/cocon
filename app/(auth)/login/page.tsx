@@ -81,6 +81,13 @@ export default function LoginPage() {
       <p className="text-[12px] text-foreground-faint leading-[1.5]">
         Nouveau ou invité ? On reconnaît automatiquement.
       </p>
+
+      <div className="rounded-[12px] border border-dashed border-border bg-transparent px-4 py-3 flex items-center gap-3 opacity-70 mt-2">
+        <span className="text-[16px]">🔐</span>
+        <span className="text-[12px] text-muted-foreground leading-snug">
+          Connexion par passkey (Face ID, empreinte) — bientôt au sprint 3.
+        </span>
+      </div>
     </div>
   );
 }

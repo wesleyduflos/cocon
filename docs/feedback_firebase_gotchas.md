@@ -74,3 +74,46 @@ Aussi : sur Windows, les `predeploy` hooks de `firebase.json` qui utilisent `$RE
 Au tout premier déploiement Cloud Functions après activation de Blaze, certaines APIs Google (eventarc, run, secretmanager) ne sont pas encore activées. Le **premier `firebase deploy --only functions`** active ces APIs puis échoue avec une erreur de permission temporaire. **Retry après 30s** suffit (les IAM bindings se propagent).
 
 Le `--force` est utile pour auto-set la cleanup policy artifacts (sinon les vieilles images Docker s'accumulent).
+
+## 11. rrule + timezone (sprint 2)
+
+La lib `rrule` interprète les `Date` JS sans dtstart comme **locale** par défaut, ce qui rend les tests dépendants du fuseau du runner. Pour des helpers déterministes :
+
+1. Composer la string ICS complète avec un `DTSTART:YYYYMMDDTHHMMSSZ` explicite plutôt que de passer `dtstart` en option JS.
+2. Dans les tests, utiliser `Date.UTC(...)` pour créer des dates en UTC et lire avec `getUTCDate()/getUTCMonth()`.
+
+Bug observé : `getNextOccurrence("FREQ=WEEKLY;BYDAY=TU", monday, monday)` retournait le mercredi au lieu du mardi à cause d'un shift UTC+2 en local France.
+
+## 12. Cloud Functions v2 — onSchedule + Firestore (sprint 2)
+
+`onSchedule({ schedule: "every 60 minutes", timeZone: "Europe/Paris" })` fonctionne nativement en v2 — pas besoin de Pub/Sub explicite. Firebase déploie le scheduler dans App Engine automatiquement. Vérifier que **App Engine et Cloud Scheduler** sont activés au premier déploiement (firebase deploy le fait souvent automatiquement, mais peut nécessiter retry).
+
+Pour scanner toutes les sous-collections "tasks" sans avoir à itérer les households, utiliser `db.collectionGroup("tasks").where(...)`. Firestore propose un index automatique sur les collection groups.
+
+## 13. Service Worker FCM + Next.js (sprint 2)
+
+Firebase Messaging exige un Service Worker à un path fixe (`/firebase-messaging-sw.js`). Avec Next.js App Router :
+
+- **Pas** placer le fichier dans `public/` avec config hardcodée (sinon : drift dev/prod + secret de SW à maintenir).
+- **Préférable** : route handler dynamique (`app/api/firebase-messaging-sw/route.ts`) qui injecte `process.env.NEXT_PUBLIC_FIREBASE_*` côté serveur, + rewrite dans `next.config.ts` :
+  ```ts
+  async rewrites() {
+    return [{ source: "/firebase-messaging-sw.js", destination: "/api/firebase-messaging-sw" }];
+  }
+  ```
+
+Ainsi le SW est généré à la build avec la bonne config et toujours synchro avec le client.
+
+## 14. Passkeys WebAuthn — report sprint 3
+
+Intégration native passkeys avec Firebase Auth Web SDK (v10) nécessite côté serveur :
+1. Cloud Function `generatePasskeyChallenge` pour register et login (challenge cryptographique)
+2. Cloud Function `verifyPasskeyAssertion` pour valider l'authentification
+3. Stockage du credential ID + publicKey dans Firestore
+4. Firebase Auth Custom Token issuance après vérification
+
+Couplage avec WebAuthn standard (`navigator.credentials.create()/.get()`) côté client.
+
+C'est ~3-4h de code + crypto à valider. Reporté sprint 3 (priorité basse, magic link couvre 100% des besoins en attendant).
+
+L'endpoint `/api/auth/lookup` prévu dans `architecture-cocon.md §4.2` reste aussi à faire — pour l'instant, le flow email-first signin sans lookup est anti-énumération par design (Firebase ne révèle pas si l'email existe), donc pas urgent.
