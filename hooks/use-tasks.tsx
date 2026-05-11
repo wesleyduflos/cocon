@@ -3,7 +3,10 @@
 import { onSnapshot, orderBy, query } from "firebase/firestore";
 import { useEffect, useState } from "react";
 
-import { householdTasksCollection } from "@/lib/firebase/firestore";
+import {
+  householdTaskDoc,
+  householdTasksCollection,
+} from "@/lib/firebase/firestore";
 import type { Task, WithId } from "@/types/cocon";
 
 interface TasksState {
@@ -45,6 +48,56 @@ export function useTasks(householdId: string | undefined): TasksState {
 
     return unsubscribe;
   }, [householdId]);
+
+  return state;
+}
+
+interface TaskState {
+  task: WithId<Task> | null;
+  loading: boolean;
+  notFound: boolean;
+}
+
+/**
+ * Souscrit à une tâche unique en temps réel.
+ * `notFound` passe à true si le doc n'existe pas (ou a été supprimé).
+ */
+export function useTask(
+  householdId: string | undefined,
+  taskId: string | undefined,
+): TaskState {
+  const [state, setState] = useState<TaskState>({
+    task: null,
+    loading: true,
+    notFound: false,
+  });
+
+  useEffect(() => {
+    if (!householdId || !taskId) {
+      setState({ task: null, loading: false, notFound: true });
+      return;
+    }
+
+    const unsubscribe = onSnapshot(
+      householdTaskDoc(householdId, taskId),
+      (snap) => {
+        if (!snap.exists()) {
+          setState({ task: null, loading: false, notFound: true });
+          return;
+        }
+        setState({
+          task: { ...snap.data(), id: snap.id },
+          loading: false,
+          notFound: false,
+        });
+      },
+      () => {
+        setState({ task: null, loading: false, notFound: true });
+      },
+    );
+
+    return unsubscribe;
+  }, [householdId, taskId]);
 
   return state;
 }

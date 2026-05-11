@@ -9,6 +9,8 @@ import {
   addDoc,
   arrayUnion,
   collection,
+  deleteDoc,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -232,6 +234,45 @@ export async function completeTask(
     completedBy: userId,
     updatedAt: serverTimestamp() as unknown as Timestamp,
   });
+}
+
+/**
+ * Annule la complétion d'une tâche (status repasse à pending, on efface
+ * completedAt / completedBy plutôt que de les laisser à des valeurs orphelines).
+ */
+export async function uncompleteTask(
+  householdId: string,
+  taskId: string,
+): Promise<void> {
+  await updateDoc(householdTaskDoc(householdId, taskId), {
+    status: "pending",
+    completedAt: deleteField(),
+    completedBy: deleteField(),
+    updatedAt: serverTimestamp() as unknown as Timestamp,
+  });
+}
+
+/**
+ * Met à jour un sous-ensemble des champs d'une tâche. `updatedAt` est
+ * automatiquement positionné par serverTimestamp.
+ */
+export async function updateTask(
+  householdId: string,
+  taskId: string,
+  partial: Partial<Omit<Task, "createdAt" | "createdBy">>,
+): Promise<void> {
+  await updateDoc(householdTaskDoc(householdId, taskId), {
+    ...partial,
+    updatedAt: serverTimestamp() as unknown as Timestamp,
+  });
+}
+
+/** Suppression définitive d'une tâche. */
+export async function deleteTask(
+  householdId: string,
+  taskId: string,
+): Promise<void> {
+  await deleteDoc(householdTaskDoc(householdId, taskId));
 }
 
 /* =========================================================================
