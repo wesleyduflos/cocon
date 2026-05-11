@@ -9,3 +9,12 @@ export {
   disconnectGoogle,
 } from "./googleCalendar";
 export { sendTaskReminder, sendNotificationTest } from "./notifications";
+export {
+  lookupEmail,
+  generatePasskeyRegistrationOptions,
+  verifyPasskeyRegistration,
+  generatePasskeyAuthenticationOptions,
+  verifyPasskeyAuthentication,
+  listPasskeys,
+  deletePasskey,
+} from "./passkeys";
