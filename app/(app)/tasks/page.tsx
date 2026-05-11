@@ -1,121 +1,23 @@
 "use client";
 
-import { getDoc } from "firebase/firestore";
 import { Plus } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
-import { useToast } from "@/components/shared/toast-provider";
+import { TaskRow } from "@/components/tasks/task-row";
 import { useAuth } from "@/hooks/use-auth";
 import { useCurrentHousehold } from "@/hooks/use-household";
+import { useMembers } from "@/hooks/use-members";
 import { useTasks } from "@/hooks/use-tasks";
 import {
-  completeTask,
   isDueThisWeek,
   isDueToday,
   isOverdue,
   isRecentlyCompleted,
-  uncompleteTask,
-  userDoc,
 } from "@/lib/firebase/firestore";
 import type { Task, WithId } from "@/types/cocon";
 
 type Filter = "all" | "me" | "other" | "unassigned";
-
-function formatDueLabel(task: Pick<Task, "dueDate">): string | null {
-  if (!task.dueDate) return null;
-  return task.dueDate.toDate().toLocaleDateString("fr-FR", {
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-  });
-}
-
-function TaskRow({
-  task,
-  overdue,
-  householdId,
-  userId,
-}: {
-  task: WithId<Task>;
-  overdue?: boolean;
-  householdId: string;
-  userId: string;
-}) {
-  const { showToast } = useToast();
-  const [pending, setPending] = useState(false);
-  const due = formatDueLabel(task);
-  const isDone = task.status === "done";
-
-  async function handleToggle() {
-    if (pending) return;
-    setPending(true);
-    try {
-      if (isDone) {
-        await uncompleteTask(householdId, task.id);
-      } else {
-        await completeTask(householdId, task.id, userId);
-        showToast({
-          message: "Tâche complétée",
-          action: {
-            label: "Annuler",
-            onClick: () => uncompleteTask(householdId, task.id),
-          },
-        });
-      }
-    } finally {
-      setPending(false);
-    }
-  }
-
-  return (
-    <div
-      className={`relative rounded-[12px] border bg-surface flex items-center gap-3.5 transition-colors hover:bg-surface-elevated ${
-        overdue
-          ? "border-l-2 border-l-destructive border-y-border border-r-border"
-          : "border-border"
-      }`}
-    >
-      <button
-        type="button"
-        onClick={handleToggle}
-        disabled={pending}
-        aria-label={isDone ? "Décocher la tâche" : "Marquer comme faite"}
-        aria-pressed={isDone}
-        className="shrink-0 pl-4 pr-1 py-3.5 flex items-center"
-      >
-        <span
-          className={`w-5 h-5 rounded-[6px] border-[1.5px] flex items-center justify-center transition-all ${
-            isDone
-              ? "bg-secondary border-secondary"
-              : "border-[#5C3D2C] bg-transparent hover:border-primary"
-          }`}
-        >
-          {isDone ? (
-            <span className="text-[12px] text-secondary-foreground">✓</span>
-          ) : null}
-        </span>
-      </button>
-      <Link
-        href={`/tasks/${task.id}`}
-        className="flex-1 flex flex-col min-w-0 py-3.5 pr-4"
-      >
-        <span
-          className={`text-[15px] font-medium truncate ${
-            isDone ? "line-through text-muted-foreground" : "text-foreground"
-          }`}
-        >
-          {task.title}
-        </span>
-        {task.category || due ? (
-          <span className="text-[12px] text-muted-foreground truncate">
-            {[task.category, due].filter(Boolean).join(" · ")}
-          </span>
-        ) : null}
-      </Link>
-    </div>
-  );
-}
 
 function Section({
   title,
@@ -170,40 +72,20 @@ export default function TasksPage() {
   const { tasks, loading } = useTasks(household?.id);
 
   const [filter, setFilter] = useState<Filter>("all");
-  const [otherMemberName, setOtherMemberName] = useState<string | null>(null);
-  const otherMemberId = useMemo(
-    () => household?.memberIds.find((uid) => uid !== user?.uid) ?? null,
-    [household?.memberIds, user?.uid],
+  const { members } = useMembers(household?.memberIds);
+  const otherMember = useMemo(
+    () => members.find((m) => m.uid !== user?.uid) ?? null,
+    [members, user?.uid],
   );
-
-  useEffect(() => {
-    if (!otherMemberId) {
-      setOtherMemberName(null);
-      return;
-    }
-    let cancelled = false;
-    getDoc(userDoc(otherMemberId))
-      .then((snap) => {
-        if (cancelled) return;
-        const data = snap.data();
-        setOtherMemberName(
-          data?.displayName ?? data?.email?.split("@")[0] ?? "L'autre",
-        );
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [otherMemberId]);
 
   const filtered = useMemo(() => {
     if (filter === "all") return tasks;
     if (filter === "me")
       return tasks.filter((t) => t.assigneeId === user?.uid);
     if (filter === "other")
-      return tasks.filter((t) => t.assigneeId === otherMemberId);
+      return tasks.filter((t) => t.assigneeId === otherMember?.uid);
     return tasks.filter((t) => !t.assigneeId);
-  }, [tasks, filter, user?.uid, otherMemberId]);
+  }, [tasks, filter, user?.uid, otherMember]);
 
   const groups = useMemo(() => {
     const now = new Date();
@@ -281,12 +163,12 @@ export default function TasksPage() {
         <FilterChip active={filter === "me"} onClick={() => setFilter("me")}>
           À moi
         </FilterChip>
-        {otherMemberId && otherMemberName ? (
+        {otherMember ? (
           <FilterChip
             active={filter === "other"}
             onClick={() => setFilter("other")}
           >
-            À {otherMemberName}
+            À {otherMember.displayName}
           </FilterChip>
         ) : null}
         <FilterChip
