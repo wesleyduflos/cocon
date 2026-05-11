@@ -4,6 +4,7 @@ import {
   type Firestore,
   connectFirestoreEmulator,
   getFirestore,
+  initializeFirestore,
 } from "firebase/firestore";
 import {
   type FirebaseStorage,
@@ -33,7 +34,25 @@ function initClientApp(): FirebaseApp {
 const app = initClientApp();
 
 const auth: Auth = getAuth(app);
-const db: Firestore = getFirestore(app);
+
+// On utilise `initializeFirestore` plutôt que `getFirestore` pour activer
+// `ignoreUndefinedProperties` : Firestore refuse les valeurs `undefined` par
+// défaut, ce qui rend les champs optionnels (avatarUrl, dueDate, etc.) très
+// pénibles à manipuler. Avec ce flag, les `undefined` sont simplement omis
+// de l'écriture — comportement attendu pour un schéma TypeScript avec `?:`.
+// `initializeFirestore` ne peut être appelé qu'une fois, donc on retombe sur
+// `getFirestore` si une instance existe déjà (HMR).
+function getOrInitFirestore(firebaseApp: FirebaseApp): Firestore {
+  try {
+    return initializeFirestore(firebaseApp, {
+      ignoreUndefinedProperties: true,
+    });
+  } catch {
+    return getFirestore(firebaseApp);
+  }
+}
+
+const db: Firestore = getOrInitFirestore(app);
 const storage: FirebaseStorage = getStorage(app);
 
 // En développement, brancher les SDK sur les Firebase Emulators si activés.
