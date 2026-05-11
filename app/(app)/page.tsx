@@ -3,31 +3,15 @@
 import { signOut } from "firebase/auth";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
 
 import { useAuth } from "@/hooks/use-auth";
+import { useCurrentHousehold } from "@/hooks/use-household";
 import { auth } from "@/lib/firebase/client";
-import { getHouseholdsOfUser } from "@/lib/firebase/firestore";
-import type { Household, WithId } from "@/types/cocon";
 
 export default function DashboardPage() {
   const router = useRouter();
   const { user } = useAuth();
-  const [household, setHousehold] = useState<WithId<Household> | null>(null);
-
-  useEffect(() => {
-    if (!user) return;
-    let cancelled = false;
-    getHouseholdsOfUser(user.uid)
-      .then((households) => {
-        if (cancelled) return;
-        setHousehold(households[0] ?? null);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [user]);
+  const { household } = useCurrentHousehold();
 
   const today = new Date().toLocaleDateString("fr-FR", {
     weekday: "long",
@@ -44,7 +28,7 @@ export default function DashboardPage() {
   }
 
   return (
-    <main className="flex flex-1 flex-col items-center justify-center px-6 py-16">
+    <main className="flex flex-1 flex-col items-center px-6 py-12">
       <div className="w-full max-w-md flex flex-col gap-10">
         <section className="flex flex-col gap-3">
           <p className="text-[0.6875rem] uppercase tracking-[0.12em] text-muted-foreground">
@@ -61,11 +45,7 @@ export default function DashboardPage() {
                 ? ` · ${household.memberIds.length} membres`
                 : " · juste toi pour l'instant"}
             </p>
-          ) : (
-            <p className="text-[0.9375rem] text-muted-foreground leading-[1.5]">
-              Sprint 1 en cours. Le cocon démarre.
-            </p>
-          )}
+          ) : null}
         </section>
 
         <section className="flex flex-col gap-3">
@@ -76,10 +56,10 @@ export default function DashboardPage() {
             <div className="w-5 h-5 rounded-[6px] border-[1.5px] border-[#5C3D2C]" />
             <div className="flex-1 flex flex-col">
               <span className="text-[15px] font-medium">
-                Création / rejoindre cocon
+                Module Tâches en place
               </span>
               <span className="text-[12px] text-muted-foreground">
-                Sous-tâche 4 · aujourd&apos;hui
+                Sous-tâche 5 · aujourd&apos;hui
               </span>
             </div>
             <span className="w-[7px] h-[7px] rounded-full glow-dot" />

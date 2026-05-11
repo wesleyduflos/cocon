@@ -1,47 +1,40 @@
 "use client";
 
-import { useRouter, usePathname } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, type ReactNode } from "react";
 
+import { BottomNav } from "@/components/shared/bottom-nav";
 import { useAuth } from "@/hooks/use-auth";
-import { getHouseholdsOfUser } from "@/lib/firebase/firestore";
+import { HouseholdProvider, useCurrentHousehold } from "@/hooks/use-household";
 
-export default function AppLayout({ children }: { children: ReactNode }) {
-  const { user, loading } = useAuth();
+// Routes qui s'affichent en plein écran (sans la bottom nav).
+// Cf. screens-spec.md §2.3 : création de tâche, mode supermarché, login.
+const FULLSCREEN_ROUTES = ["/tasks/new", "/invite"];
+
+function isFullscreen(pathname: string): boolean {
+  return FULLSCREEN_ROUTES.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`),
+  );
+}
+
+function AppLayoutInner({ children }: { children: ReactNode }) {
+  const { user, loading: authLoading } = useAuth();
+  const { household, loading: householdLoading } = useCurrentHousehold();
   const router = useRouter();
   const pathname = usePathname();
-  const [checkingHousehold, setCheckingHousehold] = useState(true);
 
   useEffect(() => {
-    if (loading) return;
+    if (authLoading) return;
     if (!user) {
       router.replace("/login");
       return;
     }
-    let cancelled = false;
-    getHouseholdsOfUser(user.uid)
-      .then((households) => {
-        if (cancelled) return;
-        if (households.length === 0) {
-          router.replace("/onboarding");
-        } else {
-          setCheckingHousehold(false);
-        }
-      })
-      .catch(() => {
-        if (cancelled) return;
-        // En cas d'erreur de lecture, on laisse passer pour ne pas bloquer
-        // l'utilisateur — l'écran consommateur affichera son propre message.
-        setCheckingHousehold(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-    // Re-check à chaque changement de route (pour le cas où on vient de
-    // créer/rejoindre un cocon depuis /onboarding ou /join).
-  }, [user, loading, router, pathname]);
+    if (!householdLoading && !household) {
+      router.replace("/onboarding");
+    }
+  }, [user, authLoading, household, householdLoading, router]);
 
-  if (loading || checkingHousehold) {
+  if (authLoading || householdLoading) {
     return (
       <main className="flex flex-1 items-center justify-center px-6 py-16">
         <p className="text-[13px] text-muted-foreground">Chargement…</p>
@@ -49,7 +42,24 @@ export default function AppLayout({ children }: { children: ReactNode }) {
     );
   }
 
-  if (!user) return null;
+  if (!user || !household) return null;
 
-  return <>{children}</>;
+  const fullscreen = isFullscreen(pathname);
+
+  return (
+    <>
+      <div className={`flex flex-1 flex-col ${fullscreen ? "" : "pb-24"}`}>
+        {children}
+      </div>
+      {!fullscreen ? <BottomNav /> : null}
+    </>
+  );
+}
+
+export default function AppLayout({ children }: { children: ReactNode }) {
+  return (
+    <HouseholdProvider>
+      <AppLayoutInner>{children}</AppLayoutInner>
+    </HouseholdProvider>
+  );
 }
