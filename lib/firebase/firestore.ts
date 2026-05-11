@@ -468,3 +468,46 @@ export function isInvitationExpired(
 ): boolean {
   return invitation.expiresAt.toMillis() < now.getTime();
 }
+
+/**
+ * Une tâche est due cette semaine si sa dueDate est dans les 7 prochains
+ * jours (à compter de minuit aujourd'hui, exclusif d'aujourd'hui-même —
+ * `isDueToday` couvre déjà ce cas).
+ */
+export function isDueThisWeek(
+  task: Pick<Task, "dueDate">,
+  now: Date,
+): boolean {
+  if (!task.dueDate) return false;
+  const due = task.dueDate.toDate();
+  const startOfTomorrow = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 1,
+  );
+  const endOfWeek = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate() + 7,
+    23,
+    59,
+    59,
+  );
+  return due >= startOfTomorrow && due <= endOfWeek;
+}
+
+/**
+ * Une tâche est "récemment complétée" si elle est faite ET que sa
+ * completedAt est dans les 7 derniers jours (utilisé pour la section
+ * « Fait récemment » du dashboard et de la liste).
+ */
+export function isRecentlyCompleted(
+  task: Pick<Task, "status" | "completedAt">,
+  now: Date,
+): boolean {
+  if (task.status !== "done") return false;
+  if (!task.completedAt) return false;
+  const completed = task.completedAt.toDate();
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  return completed >= sevenDaysAgo;
+}

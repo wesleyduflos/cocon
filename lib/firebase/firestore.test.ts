@@ -16,9 +16,11 @@ vi.mock("./client", () => ({
 import {
   householdConverter,
   invitationConverter,
+  isDueThisWeek,
   isDueToday,
   isInvitationExpired,
   isOverdue,
+  isRecentlyCompleted,
   taskConverter,
   timestampFromDate,
   userConverter,
@@ -111,6 +113,74 @@ describe("timestampFromDate", () => {
     const ts = timestampFromDate(date);
     expect(ts).toBeInstanceOf(Timestamp);
     expect(ts.toMillis()).toBe(date.getTime());
+  });
+});
+
+describe("isDueThisWeek", () => {
+  const now = new Date("2026-05-11T10:00:00");
+
+  it("returns false when task has no dueDate", () => {
+    expect(isDueThisWeek({}, now)).toBe(false);
+  });
+
+  it("returns false when dueDate is today (handled by isDueToday)", () => {
+    const task = {
+      dueDate: timestampFromDate(new Date("2026-05-11T20:00:00")),
+    };
+    expect(isDueThisWeek(task, now)).toBe(false);
+  });
+
+  it("returns true for tomorrow", () => {
+    const task = {
+      dueDate: timestampFromDate(new Date("2026-05-12T10:00:00")),
+    };
+    expect(isDueThisWeek(task, now)).toBe(true);
+  });
+
+  it("returns true for 7 days later", () => {
+    const task = {
+      dueDate: timestampFromDate(new Date("2026-05-18T23:00:00")),
+    };
+    expect(isDueThisWeek(task, now)).toBe(true);
+  });
+
+  it("returns false for 8+ days later", () => {
+    const task = {
+      dueDate: timestampFromDate(new Date("2026-05-19T10:00:00")),
+    };
+    expect(isDueThisWeek(task, now)).toBe(false);
+  });
+});
+
+describe("isRecentlyCompleted", () => {
+  const now = new Date("2026-05-11T10:00:00");
+
+  it("returns false when status is pending", () => {
+    const task = {
+      status: "pending" as const,
+      completedAt: timestampFromDate(new Date("2026-05-10T10:00:00")),
+    };
+    expect(isRecentlyCompleted(task, now)).toBe(false);
+  });
+
+  it("returns false when done but no completedAt", () => {
+    expect(isRecentlyCompleted({ status: "done" as const }, now)).toBe(false);
+  });
+
+  it("returns true when done and completed yesterday", () => {
+    const task = {
+      status: "done" as const,
+      completedAt: timestampFromDate(new Date("2026-05-10T10:00:00")),
+    };
+    expect(isRecentlyCompleted(task, now)).toBe(true);
+  });
+
+  it("returns false when done and completed more than 7 days ago", () => {
+    const task = {
+      status: "done" as const,
+      completedAt: timestampFromDate(new Date("2026-05-03T10:00:00")),
+    };
+    expect(isRecentlyCompleted(task, now)).toBe(false);
   });
 });
 
