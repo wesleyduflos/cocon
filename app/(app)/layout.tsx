@@ -16,6 +16,7 @@ const FULLSCREEN_ROUTES = [
   "/calendar/new",
   "/shopping/new",
   "/shopping/market",
+  "/memory/new",
   "/invite",
 ];
 

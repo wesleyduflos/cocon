@@ -184,6 +184,35 @@ export interface Attachment {
   createdBy: string;
 }
 
+// ---------- Memory entry ----------
+
+export type MemoryEntryType =
+  | "code"
+  | "object"
+  | "contact"
+  | "manual"
+  | "warranty"
+  | "note";
+
+export interface MemoryEntry {
+  type: MemoryEntryType;
+  title: string;
+  emoji?: string;
+  pinned: boolean;
+  pinnedOrder?: number;
+  /** Champ libre dont la structure dépend du `type`. */
+  structuredData: Record<string, string | number | boolean | undefined>;
+  tags: string[];
+  /** Calculés à l'écriture, utilisés pour la recherche `array-contains-any`. */
+  searchTokens: string[];
+  attachmentIds?: string[];
+  isSensitive: boolean;
+  lastViewedAt?: Timestamp;
+  createdAt: Timestamp;
+  createdBy: string;
+  updatedAt: Timestamp;
+}
+
 // ---------- Stock ----------
 
 export type StockLevel = "full" | "half" | "low" | "empty";

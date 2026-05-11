@@ -29,6 +29,8 @@ import {
   type Household,
   type HouseholdMember,
   type Invitation,
+  type MemoryEntry,
+  type MemoryEntryType,
   type QuickAddItem,
   type ShoppingItem,
   type ShoppingRayon,
@@ -40,6 +42,7 @@ import {
   type WithId,
 } from "@/types/cocon";
 
+import { tokenize } from "@/lib/memory/tokenize";
 import { capHistory, predictNextRenewal, shouldAutoReorder } from "@/lib/stocks";
 
 import { db } from "./client";
@@ -69,6 +72,7 @@ export const shoppingItemConverter = makeConverter<ShoppingItem>();
 export const quickAddItemConverter = makeConverter<QuickAddItem>();
 export const attachmentConverter = makeConverter<Attachment>();
 export const stockItemConverter = makeConverter<StockItem>();
+export const memoryEntryConverter = makeConverter<MemoryEntry>();
 
 /* =========================================================================
    References typées
@@ -238,6 +242,30 @@ export function stockDoc(
   return doc(db, "households", householdId, "stocks", stockId).withConverter(
     stockItemConverter,
   );
+}
+
+export function memoryEntriesCollection(
+  householdId: string,
+): CollectionReference<MemoryEntry> {
+  return collection(
+    db,
+    "households",
+    householdId,
+    "memory-entries",
+  ).withConverter(memoryEntryConverter);
+}
+
+export function memoryEntryDoc(
+  householdId: string,
+  entryId: string,
+): DocumentReference<MemoryEntry> {
+  return doc(
+    db,
+    "households",
+    householdId,
+    "memory-entries",
+    entryId,
+  ).withConverter(memoryEntryConverter);
 }
 
 /* =========================================================================
@@ -720,6 +748,111 @@ export async function deleteStockItem(
   stockId: string,
 ): Promise<void> {
   await deleteDoc(stockDoc(householdId, stockId));
+}
+
+/* =========================================================================
+   Memory entries
+   ========================================================================= */
+
+export interface CreateMemoryEntryInput {
+  type: MemoryEntryType;
+  title: string;
+  createdBy: string;
+  emoji?: string;
+  pinned?: boolean;
+  structuredData?: MemoryEntry["structuredData"];
+  tags?: string[];
+  isSensitive?: boolean;
+}
+
+function buildSearchTokens(
+  input: Pick<CreateMemoryEntryInput, "title" | "tags" | "structuredData">,
+): string[] {
+  const parts: string[] = [input.title];
+  if (input.tags) parts.push(...input.tags);
+  if (input.structuredData) {
+    for (const value of Object.values(input.structuredData)) {
+      if (typeof value === "string") parts.push(value);
+    }
+  }
+  const tokens = parts.flatMap((p) => tokenize(p));
+  return Array.from(new Set(tokens));
+}
+
+export async function createMemoryEntry(
+  householdId: string,
+  input: CreateMemoryEntryInput,
+): Promise<string> {
+  const now = serverTimestamp() as unknown as Timestamp;
+  const ref = await addDoc(memoryEntriesCollection(householdId), {
+    type: input.type,
+    title: input.title,
+    emoji: input.emoji,
+    pinned: input.pinned ?? false,
+    structuredData: input.structuredData ?? {},
+    tags: input.tags ?? [],
+    searchTokens: buildSearchTokens(input),
+    isSensitive: input.isSensitive ?? false,
+    createdBy: input.createdBy,
+    createdAt: now,
+    updatedAt: now,
+  });
+  return ref.id;
+}
+
+export async function updateMemoryEntry(
+  householdId: string,
+  entryId: string,
+  patch: Partial<
+    Pick<
+      MemoryEntry,
+      | "title"
+      | "emoji"
+      | "pinned"
+      | "pinnedOrder"
+      | "structuredData"
+      | "tags"
+      | "isSensitive"
+    >
+  >,
+): Promise<void> {
+  const update: Record<string, unknown> = {
+    ...patch,
+    updatedAt: serverTimestamp(),
+  };
+  // Recalculer les tokens si title, tags ou structuredData ont changé
+  if (
+    "title" in patch ||
+    "tags" in patch ||
+    "structuredData" in patch
+  ) {
+    const currentSnap = await getDoc(memoryEntryDoc(householdId, entryId));
+    const current = currentSnap.data();
+    if (current) {
+      update.searchTokens = buildSearchTokens({
+        title: patch.title ?? current.title,
+        tags: patch.tags ?? current.tags,
+        structuredData: patch.structuredData ?? current.structuredData,
+      });
+    }
+  }
+  await updateDoc(memoryEntryDoc(householdId, entryId), update);
+}
+
+export async function deleteMemoryEntry(
+  householdId: string,
+  entryId: string,
+): Promise<void> {
+  await deleteDoc(memoryEntryDoc(householdId, entryId));
+}
+
+export async function markMemoryEntryViewed(
+  householdId: string,
+  entryId: string,
+): Promise<void> {
+  await updateDoc(memoryEntryDoc(householdId, entryId), {
+    lastViewedAt: serverTimestamp(),
+  });
 }
 
 /* =========================================================================
