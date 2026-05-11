@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 
 import { BottomNav } from "@/components/shared/bottom-nav";
+import { ToastProvider } from "@/components/shared/toast-provider";
 import { useAuth } from "@/hooks/use-auth";
 import { HouseholdProvider, useCurrentHousehold } from "@/hooks/use-household";
 
@@ -59,7 +60,9 @@ function AppLayoutInner({ children }: { children: ReactNode }) {
 export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <HouseholdProvider>
-      <AppLayoutInner>{children}</AppLayoutInner>
+      <ToastProvider>
+        <AppLayoutInner>{children}</AppLayoutInner>
+      </ToastProvider>
     </HouseholdProvider>
   );
 }

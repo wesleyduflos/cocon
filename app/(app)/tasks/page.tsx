@@ -5,14 +5,17 @@ import { Plus } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
+import { useToast } from "@/components/shared/toast-provider";
 import { useAuth } from "@/hooks/use-auth";
 import { useCurrentHousehold } from "@/hooks/use-household";
 import { useTasks } from "@/hooks/use-tasks";
 import {
+  completeTask,
   isDueThisWeek,
   isDueToday,
   isOverdue,
   isRecentlyCompleted,
+  uncompleteTask,
   userDoc,
 } from "@/lib/firebase/firestore";
 import type { Task, WithId } from "@/types/cocon";
@@ -31,32 +34,72 @@ function formatDueLabel(task: Pick<Task, "dueDate">): string | null {
 function TaskRow({
   task,
   overdue,
+  householdId,
+  userId,
 }: {
   task: WithId<Task>;
   overdue?: boolean;
+  householdId: string;
+  userId: string;
 }) {
+  const { showToast } = useToast();
+  const [pending, setPending] = useState(false);
   const due = formatDueLabel(task);
   const isDone = task.status === "done";
 
+  async function handleToggle() {
+    if (pending) return;
+    setPending(true);
+    try {
+      if (isDone) {
+        await uncompleteTask(householdId, task.id);
+      } else {
+        await completeTask(householdId, task.id, userId);
+        showToast({
+          message: "Tâche complétée",
+          action: {
+            label: "Annuler",
+            onClick: () => uncompleteTask(householdId, task.id),
+          },
+        });
+      }
+    } finally {
+      setPending(false);
+    }
+  }
+
   return (
-    <Link
-      href={`/tasks/${task.id}`}
-      className={`rounded-[12px] border bg-surface px-4 py-3.5 flex items-center gap-3.5 hover:bg-surface-elevated transition-colors ${
-        overdue ? "border-l-2 border-l-destructive border-y-border border-r-border" : "border-border"
+    <div
+      className={`relative rounded-[12px] border bg-surface flex items-center gap-3.5 transition-colors hover:bg-surface-elevated ${
+        overdue
+          ? "border-l-2 border-l-destructive border-y-border border-r-border"
+          : "border-border"
       }`}
     >
-      <div
-        className={`w-5 h-5 rounded-[6px] border-[1.5px] flex items-center justify-center shrink-0 ${
-          isDone
-            ? "bg-secondary border-secondary"
-            : "border-[#5C3D2C] bg-transparent"
-        }`}
+      <button
+        type="button"
+        onClick={handleToggle}
+        disabled={pending}
+        aria-label={isDone ? "Décocher la tâche" : "Marquer comme faite"}
+        aria-pressed={isDone}
+        className="shrink-0 pl-4 pr-1 py-3.5 flex items-center"
       >
-        {isDone ? (
-          <span className="text-[12px] text-secondary-foreground">✓</span>
-        ) : null}
-      </div>
-      <div className="flex-1 flex flex-col min-w-0">
+        <span
+          className={`w-5 h-5 rounded-[6px] border-[1.5px] flex items-center justify-center transition-all ${
+            isDone
+              ? "bg-secondary border-secondary"
+              : "border-[#5C3D2C] bg-transparent hover:border-primary"
+          }`}
+        >
+          {isDone ? (
+            <span className="text-[12px] text-secondary-foreground">✓</span>
+          ) : null}
+        </span>
+      </button>
+      <Link
+        href={`/tasks/${task.id}`}
+        className="flex-1 flex flex-col min-w-0 py-3.5 pr-4"
+      >
         <span
           className={`text-[15px] font-medium truncate ${
             isDone ? "line-through text-muted-foreground" : "text-foreground"
@@ -69,8 +112,8 @@ function TaskRow({
             {[task.category, due].filter(Boolean).join(" · ")}
           </span>
         ) : null}
-      </div>
-    </Link>
+      </Link>
+    </div>
   );
 }
 
@@ -79,11 +122,15 @@ function Section({
   subtitle,
   tasks,
   overdue,
+  householdId,
+  userId,
 }: {
   title: string;
   subtitle?: string;
   tasks: WithId<Task>[];
   overdue?: WithId<Task>[];
+  householdId: string;
+  userId: string;
 }) {
   if (tasks.length === 0 && (!overdue || overdue.length === 0)) return null;
   return (
@@ -99,12 +146,17 @@ function Section({
       <ul className="flex flex-col gap-2">
         {overdue?.map((t) => (
           <li key={t.id}>
-            <TaskRow task={t} overdue />
+            <TaskRow
+              task={t}
+              overdue
+              householdId={householdId}
+              userId={userId}
+            />
           </li>
         ))}
         {tasks.map((t) => (
           <li key={t.id}>
-            <TaskRow task={t} />
+            <TaskRow task={t} householdId={householdId} userId={userId} />
           </li>
         ))}
       </ul>
@@ -268,7 +320,7 @@ export default function TasksPage() {
             </Link>
           ) : null}
         </div>
-      ) : (
+      ) : household && user ? (
         <div className="flex flex-col gap-6">
           <Section
             title="Aujourd'hui"
@@ -279,12 +331,29 @@ export default function TasksPage() {
             }
             tasks={groups.today}
             overdue={groups.overdue}
+            householdId={household.id}
+            userId={user.uid}
           />
-          <Section title="Cette semaine" tasks={groups.week} />
-          <Section title="Plus tard" tasks={groups.later} />
-          <Section title="Fait récemment" tasks={groups.recent} />
+          <Section
+            title="Cette semaine"
+            tasks={groups.week}
+            householdId={household.id}
+            userId={user.uid}
+          />
+          <Section
+            title="Plus tard"
+            tasks={groups.later}
+            householdId={household.id}
+            userId={user.uid}
+          />
+          <Section
+            title="Fait récemment"
+            tasks={groups.recent}
+            householdId={household.id}
+            userId={user.uid}
+          />
         </div>
-      )}
+      ) : null}
     </main>
   );
 }
