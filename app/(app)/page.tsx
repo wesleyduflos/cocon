@@ -1,8 +1,6 @@
 "use client";
 
-import { signOut } from "firebase/auth";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useMemo } from "react";
 
 import { TaskRow } from "@/components/tasks/task-row";
@@ -10,7 +8,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { useCurrentHousehold } from "@/hooks/use-household";
 import { useMembers, type MemberProfile } from "@/hooks/use-members";
 import { useTasks } from "@/hooks/use-tasks";
-import { auth } from "@/lib/firebase/client";
 import {
   isDueToday,
   isOverdue,
@@ -69,7 +66,6 @@ function MemberAvatar({
 }
 
 export default function DashboardPage() {
-  const router = useRouter();
   const { user } = useAuth();
   const { household } = useCurrentHousehold();
   const { tasks } = useTasks(household?.id);
@@ -112,11 +108,6 @@ export default function DashboardPage() {
       })
       .slice(0, 5);
   }, [tasks]);
-
-  async function handleSignOut() {
-    await signOut(auth);
-    router.replace("/login");
-  }
 
   return (
     <main className="flex flex-1 flex-col px-5 py-7">
@@ -220,16 +211,6 @@ export default function DashboardPage() {
           </section>
         ) : null}
 
-        {/* Sign out (discret) */}
-        <section className="flex justify-center pt-2">
-          <button
-            type="button"
-            onClick={handleSignOut}
-            className="text-[12px] text-foreground-faint hover:text-muted-foreground transition-colors"
-          >
-            Se déconnecter
-          </button>
-        </section>
       </div>
     </main>
   );

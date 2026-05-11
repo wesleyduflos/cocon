@@ -29,6 +29,7 @@ import {
   type Invitation,
   type Task,
   type User,
+  type UserPreferences,
   type WithId,
 } from "@/types/cocon";
 
@@ -149,6 +150,42 @@ export async function createUserDoc(input: CreateUserInput): Promise<void> {
     createdAt: serverTimestamp() as unknown as Timestamp,
     preferences: DEFAULT_USER_PREFERENCES,
   });
+}
+
+/**
+ * Met à jour le displayName d'un user.
+ */
+export async function updateUserDisplayName(
+  uid: string,
+  displayName: string,
+): Promise<void> {
+  await updateDoc(userDoc(uid), { displayName });
+}
+
+/**
+ * Met à jour partiellement les préférences d'un user (theme, quiet hours,
+ * etc.). Le doc est lu d'abord pour merger avec les préférences existantes.
+ */
+export async function updateUserPreferences(
+  uid: string,
+  patch: Partial<UserPreferences>,
+): Promise<void> {
+  const snap = await getDoc(userDoc(uid));
+  const current = snap.data()?.preferences ?? DEFAULT_USER_PREFERENCES;
+  await updateDoc(userDoc(uid), {
+    preferences: { ...current, ...patch },
+  });
+}
+
+/**
+ * Met à jour le nom et/ou l'emoji d'un cocon. Seul l'owner peut le faire
+ * (vérifié côté rules).
+ */
+export async function updateHousehold(
+  householdId: string,
+  patch: Partial<Pick<Household, "name" | "emoji">>,
+): Promise<void> {
+  await updateDoc(householdDoc(householdId), patch);
 }
 
 export interface CreateHouseholdInput {

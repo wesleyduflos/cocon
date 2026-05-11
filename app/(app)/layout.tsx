@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, type ReactNode } from "react";
 
 import { BottomNav } from "@/components/shared/bottom-nav";
+import { ThemeApplier } from "@/components/shared/theme-applier";
 import { ToastProvider } from "@/components/shared/toast-provider";
 import { useAuth } from "@/hooks/use-auth";
 import { HouseholdProvider, useCurrentHousehold } from "@/hooks/use-household";
@@ -49,6 +50,7 @@ function AppLayoutInner({ children }: { children: ReactNode }) {
 
   return (
     <>
+      <ThemeApplier />
       <div className={`flex flex-1 flex-col ${fullscreen ? "" : "pb-24"}`}>
         {children}
       </div>
