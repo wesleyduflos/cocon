@@ -26,6 +26,9 @@ import {
   DEFAULT_USER_PREFERENCES,
   type Attachment,
   type CalendarEvent,
+  type ChecklistRun,
+  type ChecklistTemplate,
+  type ChecklistTemplateItem,
   type Household,
   type HouseholdMember,
   type Invitation,
@@ -73,6 +76,10 @@ export const quickAddItemConverter = makeConverter<QuickAddItem>();
 export const attachmentConverter = makeConverter<Attachment>();
 export const stockItemConverter = makeConverter<StockItem>();
 export const memoryEntryConverter = makeConverter<MemoryEntry>();
+export const checklistTemplateConverter = makeConverter<ChecklistTemplate>();
+export const checklistTemplateItemConverter =
+  makeConverter<ChecklistTemplateItem>();
+export const checklistRunConverter = makeConverter<ChecklistRun>();
 
 /* =========================================================================
    References typées
@@ -266,6 +273,68 @@ export function memoryEntryDoc(
     "memory-entries",
     entryId,
   ).withConverter(memoryEntryConverter);
+}
+
+export function checklistTemplatesCollection(
+  householdId: string,
+): CollectionReference<ChecklistTemplate> {
+  return collection(
+    db,
+    "households",
+    householdId,
+    "checklist-templates",
+  ).withConverter(checklistTemplateConverter);
+}
+
+export function checklistTemplateDoc(
+  householdId: string,
+  templateId: string,
+): DocumentReference<ChecklistTemplate> {
+  return doc(
+    db,
+    "households",
+    householdId,
+    "checklist-templates",
+    templateId,
+  ).withConverter(checklistTemplateConverter);
+}
+
+export function checklistTemplateItemsCollection(
+  householdId: string,
+  templateId: string,
+): CollectionReference<ChecklistTemplateItem> {
+  return collection(
+    db,
+    "households",
+    householdId,
+    "checklist-templates",
+    templateId,
+    "items",
+  ).withConverter(checklistTemplateItemConverter);
+}
+
+export function checklistRunsCollection(
+  householdId: string,
+): CollectionReference<ChecklistRun> {
+  return collection(
+    db,
+    "households",
+    householdId,
+    "checklist-runs",
+  ).withConverter(checklistRunConverter);
+}
+
+export function checklistRunDoc(
+  householdId: string,
+  runId: string,
+): DocumentReference<ChecklistRun> {
+  return doc(
+    db,
+    "households",
+    householdId,
+    "checklist-runs",
+    runId,
+  ).withConverter(checklistRunConverter);
 }
 
 /* =========================================================================
@@ -859,15 +928,213 @@ export async function markMemoryEntryViewed(
    Quick-add items (grille des essentiels)
    ========================================================================= */
 
+/* =========================================================================
+   Checklist templates — seed des 7 défauts + lancement
+   ========================================================================= */
+
+interface SeedTemplate {
+  name: string;
+  emoji: string;
+  description: string;
+  items: string[];
+}
+
+const DEFAULT_CHECKLIST_TEMPLATES: SeedTemplate[] = [
+  {
+    name: "Avant les vacances",
+    emoji: "🌴",
+    description:
+      "À faire dans les jours qui précèdent un départ pour ne rien oublier.",
+    items: [
+      "Arroser les plantes",
+      "Vider le frigo",
+      "Sortir les poubelles",
+      "Fermer les volets",
+      "Débrancher la box",
+      "Vérifier les passeports",
+      "Programmer le thermostat",
+      "Prévenir la voisine",
+    ],
+  },
+  {
+    name: "Soirée à la maison",
+    emoji: "🥂",
+    description: "Préparer le salon et l'apéro pour recevoir.",
+    items: [
+      "Ranger le salon",
+      "Faire les courses apéro",
+      "Préparer une playlist",
+      "Sortir les verres et la vaisselle",
+      "Vérifier les toilettes",
+      "Allumer les bougies",
+    ],
+  },
+  {
+    name: "Week-end",
+    emoji: "🎒",
+    description: "Petits réflexes avant de partir 2-3 jours.",
+    items: [
+      "Préparer le sac",
+      "Vérifier essence et billets",
+      "Programmer l'alarme",
+      "Sortir les poubelles",
+    ],
+  },
+  {
+    name: "Routine du matin",
+    emoji: "🌅",
+    description: "Petits gestes pour bien démarrer.",
+    items: ["Aérer la chambre", "Faire le lit", "Hydrater les plantes"],
+  },
+  {
+    name: "Routine du soir",
+    emoji: "🌙",
+    description: "Pour se coucher l'esprit léger.",
+    items: ["Vaisselle", "Fermer la maison", "Charger les téléphones"],
+  },
+  {
+    name: "Réception d'invités",
+    emoji: "🏠",
+    description: "Préparer la chambre d'amis et les essentiels.",
+    items: [
+      "Préparer la chambre amis",
+      "Draps propres",
+      "Serviettes",
+      "Papier toilettes",
+      "Vider les poubelles",
+    ],
+  },
+  {
+    name: "Long voyage",
+    emoji: "✈️",
+    description: "En plus du contenu de Vacances.",
+    items: [
+      "Vérifier visa et vaccins",
+      "Préparer les devises",
+      "Suspendre abonnements",
+      "Copie passeport scannée",
+    ],
+  },
+];
+
 /**
- * Stub temporaire — remplacé au Bloc F par le vrai seed des 7 checklist
- * templates. Garde createHousehold idempotent en attendant.
+ * Seed des 7 checklist templates par défaut (cf screens-spec §3.10.3).
+ * Idempotent : retourne 0 si la collection contient déjà des templates,
+ * sauf si `force=true` qui supprime tout et reseed.
  */
 export async function seedChecklistTemplates(
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   householdId: string,
+  options: { force?: boolean } = {},
 ): Promise<{ created: number }> {
-  return { created: 0 };
+  const existing = await getDocs(checklistTemplatesCollection(householdId));
+  if (existing.size > 0 && !options.force) {
+    return { created: 0 };
+  }
+  if (existing.size > 0 && options.force) {
+    // On supprime aussi les sous-collections items
+    for (const t of existing.docs) {
+      const items = await getDocs(
+        checklistTemplateItemsCollection(householdId, t.id),
+      );
+      await Promise.all(items.docs.map((i) => deleteDoc(i.ref)));
+      await deleteDoc(t.ref);
+    }
+  }
+
+  await Promise.all(
+    DEFAULT_CHECKLIST_TEMPLATES.map(async (t) => {
+      const now = serverTimestamp() as unknown as Timestamp;
+      const tRef = await addDoc(checklistTemplatesCollection(householdId), {
+        name: t.name,
+        emoji: t.emoji,
+        description: t.description,
+        isSeeded: true,
+        createdAt: now,
+        updatedAt: now,
+      });
+      await Promise.all(
+        t.items.map((title, idx) =>
+          addDoc(
+            checklistTemplateItemsCollection(householdId, tRef.id),
+            { position: idx, title },
+          ),
+        ),
+      );
+    }),
+  );
+
+  return { created: DEFAULT_CHECKLIST_TEMPLATES.length };
+}
+
+/**
+ * Lance un template : crée un checklist-run + crée N tasks pending avec
+ * checklistRunId set sur chacune. Retourne le runId.
+ */
+export async function launchChecklistRun(
+  householdId: string,
+  templateId: string,
+  startedBy: string,
+): Promise<string> {
+  const [tSnap, itemsSnap] = await Promise.all([
+    getDoc(checklistTemplateDoc(householdId, templateId)),
+    getDocs(checklistTemplateItemsCollection(householdId, templateId)),
+  ]);
+  if (!tSnap.exists()) {
+    throw new Error("Template introuvable.");
+  }
+  const template = tSnap.data();
+  const items = itemsSnap.docs
+    .map((d) => d.data())
+    .sort((a, b) => a.position - b.position);
+
+  // Créer le run
+  const now = serverTimestamp() as unknown as Timestamp;
+  const runRef = await addDoc(checklistRunsCollection(householdId), {
+    templateId,
+    templateName: template.name,
+    templateEmoji: template.emoji,
+    startedAt: now,
+    startedBy,
+    totalTasks: items.length,
+    completedTasks: 0,
+  });
+
+  // Créer les tasks
+  await Promise.all(
+    items.map((item) =>
+      addDoc(householdTasksCollection(householdId), {
+        title: item.title,
+        assigneeId: item.defaultAssigneeId,
+        notes: item.notes,
+        status: "pending",
+        checklistRunId: runRef.id,
+        createdBy: startedBy,
+        createdAt: now,
+        updatedAt: now,
+      }),
+    ),
+  );
+
+  return runRef.id;
+}
+
+export async function markRunCompleted(
+  householdId: string,
+  runId: string,
+  completedTasks: number,
+): Promise<void> {
+  await updateDoc(checklistRunDoc(householdId, runId), {
+    completedTasks,
+    completedAt: serverTimestamp(),
+  });
+}
+
+export async function updateRunProgress(
+  householdId: string,
+  runId: string,
+  completedTasks: number,
+): Promise<void> {
+  await updateDoc(checklistRunDoc(householdId, runId), { completedTasks });
 }
 
 /** Les 8 essentiels seedés à la création d'un cocon. */

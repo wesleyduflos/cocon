@@ -184,6 +184,36 @@ export interface Attachment {
   createdBy: string;
 }
 
+// ---------- Checklist templates & runs ----------
+
+export interface ChecklistTemplate {
+  name: string;
+  emoji: string;
+  description?: string;
+  isSeeded: boolean;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface ChecklistTemplateItem {
+  position: number;
+  title: string;
+  defaultAssigneeId?: string;
+  estimatedMinutes?: number;
+  notes?: string;
+}
+
+export interface ChecklistRun {
+  templateId: string;
+  templateName: string;
+  templateEmoji: string;
+  startedAt: Timestamp;
+  startedBy: string;
+  completedAt?: Timestamp;
+  totalTasks: number;
+  completedTasks: number;
+}
+
 // ---------- Memory entry ----------
 
 export type MemoryEntryType =
