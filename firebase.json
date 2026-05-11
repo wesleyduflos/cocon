@@ -17,10 +17,6 @@
         "firebase-debug.log",
         "firebase-debug.*.log",
         "*.local"
-      ],
-      "predeploy": [
-        "pnpm --dir \"$RESOURCE_DIR\" run lint",
-        "pnpm --dir \"$RESOURCE_DIR\" run build"
       ]
     }
   ],
