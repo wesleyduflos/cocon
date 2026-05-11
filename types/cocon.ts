@@ -117,6 +117,29 @@ export interface Task {
   updatedAt: Timestamp;
 }
 
+// ---------- Calendar event ----------
+
+export type CalendarSource = "local" | "google" | "outlook";
+
+/**
+ * Documents dans `households/{hid}/calendar-events/{eventId}`.
+ * Cf. architecture-cocon.md §3.2.
+ */
+export interface CalendarEvent {
+  title: string;
+  description?: string;
+  location?: string;
+  startTime: Timestamp;
+  endTime?: Timestamp;
+  allDay: boolean;
+  assigneeIds?: string[];
+  source: CalendarSource;
+  externalEventId?: string;
+  recurrenceRule?: string; // sprint 2 — RRULE iCal pour les événements récurrents
+  createdAt: Timestamp;
+  createdBy: string;
+}
+
 // ---------- Préférences utilisateur par défaut ----------
 
 export const DEFAULT_USER_PREFERENCES: UserPreferences = {

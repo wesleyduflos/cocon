@@ -24,6 +24,7 @@ import {
 
 import {
   DEFAULT_USER_PREFERENCES,
+  type CalendarEvent,
   type Household,
   type HouseholdMember,
   type Invitation,
@@ -55,6 +56,7 @@ export const householdConverter = makeConverter<Household>();
 export const householdMemberConverter = makeConverter<HouseholdMember>();
 export const taskConverter = makeConverter<Task>();
 export const invitationConverter = makeConverter<Invitation>();
+export const calendarEventConverter = makeConverter<CalendarEvent>();
 
 /* =========================================================================
    References typées
@@ -124,6 +126,30 @@ export function invitationsCollection(): CollectionReference<Invitation> {
 
 export function invitationDoc(token: string): DocumentReference<Invitation> {
   return doc(db, "invitations", token).withConverter(invitationConverter);
+}
+
+export function householdCalendarEventsCollection(
+  householdId: string,
+): CollectionReference<CalendarEvent> {
+  return collection(
+    db,
+    "households",
+    householdId,
+    "calendar-events",
+  ).withConverter(calendarEventConverter);
+}
+
+export function householdCalendarEventDoc(
+  householdId: string,
+  eventId: string,
+): DocumentReference<CalendarEvent> {
+  return doc(
+    db,
+    "households",
+    householdId,
+    "calendar-events",
+    eventId,
+  ).withConverter(calendarEventConverter);
 }
 
 /* =========================================================================
@@ -364,6 +390,65 @@ export async function deleteTask(
   taskId: string,
 ): Promise<void> {
   await deleteDoc(householdTaskDoc(householdId, taskId));
+}
+
+/* =========================================================================
+   Calendar events
+   ========================================================================= */
+
+export interface CreateCalendarEventInput {
+  title: string;
+  startTime: Timestamp;
+  allDay: boolean;
+  createdBy: string;
+  description?: string;
+  location?: string;
+  endTime?: Timestamp;
+  assigneeIds?: string[];
+  recurrenceRule?: string;
+}
+
+export async function createCalendarEvent(
+  householdId: string,
+  input: CreateCalendarEventInput,
+): Promise<string> {
+  const ref = await addDoc(householdCalendarEventsCollection(householdId), {
+    title: input.title,
+    description: input.description,
+    location: input.location,
+    startTime: input.startTime,
+    endTime: input.endTime,
+    allDay: input.allDay,
+    assigneeIds: input.assigneeIds,
+    source: "local",
+    recurrenceRule: input.recurrenceRule,
+    createdBy: input.createdBy,
+    createdAt: serverTimestamp() as unknown as Timestamp,
+  });
+  return ref.id;
+}
+
+export async function deleteCalendarEvent(
+  householdId: string,
+  eventId: string,
+): Promise<void> {
+  await deleteDoc(householdCalendarEventDoc(householdId, eventId));
+}
+
+/**
+ * Query des événements d'un cocon dans une fenêtre temporelle (typiquement
+ * 1 mois affiché dans la vue calendrier).
+ */
+export function calendarEventsInRangeQuery(
+  householdId: string,
+  rangeStart: Date,
+  rangeEnd: Date,
+): Query<CalendarEvent> {
+  return query(
+    householdCalendarEventsCollection(householdId),
+    where("startTime", ">=", FirestoreTimestamp.fromDate(rangeStart)),
+    where("startTime", "<=", FirestoreTimestamp.fromDate(rangeEnd)),
+  );
 }
 
 /* =========================================================================

@@ -11,7 +11,7 @@ import { HouseholdProvider, useCurrentHousehold } from "@/hooks/use-household";
 
 // Routes qui s'affichent en plein écran (sans la bottom nav).
 // Cf. screens-spec.md §2.3 : création de tâche, mode supermarché, login.
-const FULLSCREEN_ROUTES = ["/tasks/new", "/invite"];
+const FULLSCREEN_ROUTES = ["/tasks/new", "/calendar/new", "/invite"];
 
 function isFullscreen(pathname: string): boolean {
   return FULLSCREEN_ROUTES.some(
