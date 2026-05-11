@@ -11,9 +11,15 @@ import { auth } from "@/lib/firebase/client";
 const EMAIL_STORAGE_KEY = "cocon:emailForSignIn";
 
 function getActionCodeSettings(): ActionCodeSettings {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  // Côté client, on lit directement le domaine courant — ça suit
+  // automatiquement le déploiement (prod, preview branches, localhost en dev)
+  // sans dépendre d'une variable d'environnement.
+  const origin =
+    typeof window !== "undefined" && window.location.origin
+      ? window.location.origin
+      : process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
   return {
-    url: `${appUrl}/login/complete`,
+    url: `${origin}/login/complete`,
     handleCodeInApp: true,
   };
 }
