@@ -7,6 +7,11 @@ import {
   initializeFirestore,
 } from "firebase/firestore";
 import {
+  type Functions,
+  connectFunctionsEmulator,
+  getFunctions,
+} from "firebase/functions";
+import {
   type FirebaseStorage,
   connectStorageEmulator,
   getStorage,
@@ -54,6 +59,7 @@ function getOrInitFirestore(firebaseApp: FirebaseApp): Firestore {
 
 const db: Firestore = getOrInitFirestore(app);
 const storage: FirebaseStorage = getStorage(app);
+const functions: Functions = getFunctions(app, "europe-west1");
 
 // En développement, brancher les SDK sur les Firebase Emulators si activés.
 // On garde un flag module-scope pour éviter de rebrancher au HMR.
@@ -70,7 +76,8 @@ if (
   connectAuthEmulator(auth, "http://localhost:9099", { disableWarnings: true });
   connectFirestoreEmulator(db, "localhost", 8080);
   connectStorageEmulator(storage, "localhost", 9199);
+  connectFunctionsEmulator(functions, "localhost", 5001);
   globalThis.__coconEmulatorsConnected = true;
 }
 
-export { app, auth, db, storage };
+export { app, auth, db, functions, storage };

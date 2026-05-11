@@ -17,6 +17,7 @@
     "logs": "firebase functions:log"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.95.1",
     "firebase-admin": "^13.0.2",
     "firebase-functions": "^6.4.0"
   },

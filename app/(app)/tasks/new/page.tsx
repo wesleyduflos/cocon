@@ -1,12 +1,14 @@
 "use client";
 
 import { Timestamp, getDoc } from "firebase/firestore";
-import { X } from "lucide-react";
+import { Sparkles, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 
+import { useToast } from "@/components/shared/toast-provider";
 import { useAuth } from "@/hooks/use-auth";
 import { useCurrentHousehold } from "@/hooks/use-household";
+import { applyParseHints, parseTaskNatural } from "@/lib/ai/parse-task";
 import { createTask, userDoc } from "@/lib/firebase/firestore";
 import type { TaskEffort } from "@/types/cocon";
 
@@ -98,6 +100,7 @@ export default function NewTaskPage() {
   const router = useRouter();
   const { user } = useAuth();
   const { household } = useCurrentHousehold();
+  const { showToast } = useToast();
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -110,6 +113,13 @@ export default function NewTaskPage() {
   const [members, setMembers] = useState<MemberOption[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Saisie naturelle (encart sparkle)
+  const [aiMode, setAiMode] = useState<"idle" | "editing" | "analyzing">(
+    "idle",
+  );
+  const [naturalText, setNaturalText] = useState("");
+  const [aiError, setAiError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!household) return;
@@ -133,6 +143,81 @@ export default function NewTaskPage() {
       cancelled = true;
     };
   }, [household]);
+
+  function whenChoiceFromDueDate(dueDate?: Timestamp): WhenChoice {
+    if (!dueDate) return "none";
+    const due = dueDate.toDate();
+    const now = new Date();
+    if (
+      due.getFullYear() === now.getFullYear() &&
+      due.getMonth() === now.getMonth() &&
+      due.getDate() === now.getDate()
+    )
+      return "today";
+    const tomorrow = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() + 1,
+    );
+    if (
+      due.getFullYear() === tomorrow.getFullYear() &&
+      due.getMonth() === tomorrow.getMonth() &&
+      due.getDate() === tomorrow.getDate()
+    )
+      return "tomorrow";
+    const inSevenDays = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() + 7,
+    );
+    if (due <= inSevenDays) return "thisWeek";
+    return "custom";
+  }
+
+  async function handleAnalyze() {
+    if (!user || naturalText.trim().length < 3) return;
+    setAiError(null);
+    setAiMode("analyzing");
+    try {
+      const ai = await parseTaskNatural(naturalText.trim());
+      const otherId = household?.memberIds.find((uid) => uid !== user.uid);
+      const fields = applyParseHints(
+        ai,
+        { currentUserId: user.uid, otherMemberId: otherId },
+        new Date(),
+      );
+      // Pré-remplir le formulaire avec les valeurs détectées
+      setTitle(fields.title);
+      if (fields.category) setCategory(fields.category);
+      if (fields.assigneeId) setAssigneeId(fields.assigneeId);
+      if (fields.effort) setEffort(fields.effort);
+      if (fields.dueDate) {
+        setWhenChoice(whenChoiceFromDueDate(fields.dueDate));
+      }
+      const filledCount =
+        Number(Boolean(fields.title)) +
+        Number(Boolean(fields.category)) +
+        Number(Boolean(fields.assigneeId)) +
+        Number(Boolean(fields.effort)) +
+        Number(Boolean(fields.dueDate));
+      showToast({
+        message: `${filledCount} champ${filledCount > 1 ? "s" : ""} détecté${filledCount > 1 ? "s" : ""} · ajuste avant d'enregistrer`,
+      });
+      setAiMode("idle");
+      setNaturalText("");
+    } catch (err) {
+      // Fallback silencieux conformément aux specs : on bascule en mode
+      // formulaire normal avec le texte saisi comme titre.
+      setTitle(naturalText.trim());
+      setNaturalText("");
+      setAiMode("idle");
+      setAiError(
+        err instanceof Error
+          ? err.message
+          : "Analyse IA indisponible — on garde ta phrase comme titre.",
+      );
+    }
+  }
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -189,10 +274,85 @@ export default function NewTaskPage() {
         </button>
       </header>
 
+      <div className="px-5 pt-6 max-w-md w-full mx-auto">
+        {aiMode === "idle" ? (
+          <button
+            type="button"
+            onClick={() => setAiMode("editing")}
+            className="w-full rounded-[14px] border border-dashed border-[rgba(255,107,36,0.4)] bg-gradient-to-br from-[rgba(255,107,36,0.10)] to-[rgba(255,200,69,0.05)] px-4 py-4 flex items-center gap-3 text-left hover:from-[rgba(255,107,36,0.16)] transition-all"
+          >
+            <Sparkles
+              size={20}
+              className="text-primary shrink-0 drop-shadow-[0_0_8px_rgba(255,107,36,0.6)]"
+            />
+            <div className="flex-1 flex flex-col gap-0.5">
+              <span className="text-[13px] font-medium text-foreground">
+                Décrire en une phrase
+              </span>
+              <span className="text-[12px] text-muted-foreground">
+                « Donner le traitement à Mochi demain matin »
+              </span>
+            </div>
+          </button>
+        ) : (
+          <div className="rounded-[14px] border border-[rgba(255,107,36,0.4)] bg-gradient-to-br from-[rgba(255,107,36,0.12)] to-[rgba(255,200,69,0.06)] px-4 py-4 flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <Sparkles
+                size={16}
+                className="text-primary drop-shadow-[0_0_8px_rgba(255,107,36,0.6)]"
+              />
+              <span className="text-[12px] uppercase tracking-[0.1em] text-primary font-semibold">
+                Saisie naturelle
+              </span>
+            </div>
+            <textarea
+              value={naturalText}
+              onChange={(e) => setNaturalText(e.target.value)}
+              placeholder="Tape ta phrase ici..."
+              rows={2}
+              autoFocus
+              disabled={aiMode === "analyzing"}
+              className="rounded-[10px] bg-surface/60 border border-border px-3 py-2 text-[14px] text-foreground placeholder:text-foreground-faint focus:outline-none focus:border-primary resize-none disabled:opacity-50"
+            />
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setAiMode("idle");
+                  setNaturalText("");
+                  setAiError(null);
+                }}
+                disabled={aiMode === "analyzing"}
+                className="px-4 py-2 text-[13px] text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={handleAnalyze}
+                disabled={
+                  aiMode === "analyzing" || naturalText.trim().length < 3
+                }
+                className="px-4 py-2 rounded-[10px] bg-primary text-primary-foreground text-[13px] font-semibold shadow-[0_0_14px_rgba(255,107,36,0.4)] hover:bg-[var(--primary-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {aiMode === "analyzing" ? "Analyse…" : "Analyser ✨"}
+              </button>
+            </div>
+          </div>
+        )}
+        {aiError ? (
+          <p className="text-[12px] text-muted-foreground mt-2">
+            {aiError}
+          </p>
+        ) : null}
+      </div>
+
       <form
         id="new-task-form"
         onSubmit={handleSubmit}
-        className="flex-1 flex flex-col gap-7 px-5 py-6 max-w-md w-full mx-auto"
+        className={`flex-1 flex flex-col gap-7 px-5 py-6 max-w-md w-full mx-auto transition-opacity ${
+          aiMode === "editing" ? "opacity-40 pointer-events-none" : ""
+        }`}
       >
         <div className="flex flex-col gap-2">
           <label
