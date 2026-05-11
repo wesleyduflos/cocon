@@ -1,10 +1,16 @@
 "use client";
 
+import { Repeat } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
 import { useToast } from "@/components/shared/toast-provider";
-import { completeTask, uncompleteTask } from "@/lib/firebase/firestore";
+import {
+  completeRecurringTask,
+  completeTask,
+  uncompleteTask,
+} from "@/lib/firebase/firestore";
+import { describeRRule, getNextOccurrence } from "@/lib/recurrence";
 import type { Task, WithId } from "@/types/cocon";
 
 function formatDueLabel(task: Pick<Task, "dueDate">): string | null {
@@ -35,16 +41,36 @@ export function TaskRow({ task, householdId, userId, overdue }: TaskRowProps) {
     try {
       if (isDone) {
         await uncompleteTask(householdId, task.id);
-      } else {
-        await completeTask(householdId, task.id, userId);
-        showToast({
-          message: "Tâche complétée",
-          action: {
-            label: "Annuler",
-            onClick: () => uncompleteTask(householdId, task.id),
-          },
-        });
+        return;
       }
+
+      // Tâche récurrente : on clone en done + on avance la dueDate
+      if (task.recurrenceRule && task.dueDate) {
+        const due = task.dueDate.toDate();
+        const next = getNextOccurrence(task.recurrenceRule, due, due);
+        if (next) {
+          await completeRecurringTask(householdId, task, userId, next);
+          const nextLabel = next.toLocaleDateString("fr-FR", {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+          });
+          showToast({
+            message: `Fait ✓ Prochaine : ${nextLabel}`,
+          });
+          return;
+        }
+      }
+
+      // Cas standard : complétion simple + toast undo
+      await completeTask(householdId, task.id, userId);
+      showToast({
+        message: "Tâche complétée",
+        action: {
+          label: "Annuler",
+          onClick: () => uncompleteTask(householdId, task.id),
+        },
+      });
     } finally {
       setPending(false);
     }
@@ -83,11 +109,18 @@ export function TaskRow({ task, householdId, userId, overdue }: TaskRowProps) {
         className="flex-1 flex flex-col min-w-0 py-3.5 pr-4"
       >
         <span
-          className={`text-[15px] font-medium truncate ${
+          className={`flex items-center gap-1.5 text-[15px] font-medium truncate ${
             isDone ? "line-through text-muted-foreground" : "text-foreground"
           }`}
         >
-          {task.title}
+          {task.recurrenceRule ? (
+            <Repeat
+              size={13}
+              className="shrink-0 text-muted-foreground"
+              aria-label={describeRRule(task.recurrenceRule)}
+            />
+          ) : null}
+          <span className="truncate">{task.title}</span>
         </span>
         {task.category || due ? (
           <span className="text-[12px] text-muted-foreground truncate">

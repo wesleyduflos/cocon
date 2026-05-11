@@ -5,6 +5,7 @@ import { Sparkles, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 
+import { RecurrencePicker } from "@/components/tasks/recurrence-picker";
 import { useToast } from "@/components/shared/toast-provider";
 import { useAuth } from "@/hooks/use-auth";
 import { useCurrentHousehold } from "@/hooks/use-household";
@@ -109,6 +110,7 @@ export default function NewTaskPage() {
   const [customDate, setCustomDate] = useState<string>("");
   const [category, setCategory] = useState<string | null>(null);
   const [effort, setEffort] = useState<TaskEffort | null>(null);
+  const [recurrenceRule, setRecurrenceRule] = useState<string | null>(null);
 
   const [members, setMembers] = useState<MemberOption[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -233,6 +235,7 @@ export default function NewTaskPage() {
         assigneeId: assigneeId ?? undefined,
         effort: effort ?? undefined,
         dueDate,
+        recurrenceRule: recurrenceRule ?? undefined,
         createdBy: user.uid,
       });
       router.replace("/tasks");
@@ -507,16 +510,15 @@ export default function NewTaskPage() {
           />
         </div>
 
-        <div className="rounded-[12px] border border-dashed border-border px-4 py-3 flex items-center gap-3 opacity-60">
-          <span className="text-[18px]">🔁</span>
-          <div className="flex-1 flex flex-col">
-            <span className="text-[13px] font-medium text-foreground">
-              Récurrence
-            </span>
-            <span className="text-[11px] text-muted-foreground">
-              Bientôt — disponible au sprint 2
-            </span>
-          </div>
+        <div className="flex flex-col gap-3">
+          <span className="text-[0.6875rem] uppercase tracking-[0.12em] text-muted-foreground">
+            Récurrence
+          </span>
+          <RecurrencePicker
+            value={recurrenceRule}
+            onChange={setRecurrenceRule}
+            disabled={submitting}
+          />
         </div>
 
         {error ? (

@@ -108,7 +108,9 @@ export interface Task {
   // éviter les refactorings (cf. screens-spec §8.2).
   notes?: string; // sprint 3 — notes contextuelles partagées
   attachmentIds?: string[]; // sprint 3
-  recurrenceRule?: string; // sprint 2 — RRULE iCal
+  recurrenceRule?: string; // sprint 2 — RRULE iCal (ex: "FREQ=WEEKLY;BYDAY=TU")
+  /** Id du doc actif de la série (la tâche complétée pointe vers son original). */
+  recurrenceSeriesId?: string; // sprint 2
   checklistRunId?: string; // sprint 3
   createdAt: Timestamp;
   createdBy: string;

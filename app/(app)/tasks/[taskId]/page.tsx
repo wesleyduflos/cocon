@@ -1,19 +1,24 @@
 "use client";
 
 import { getDoc } from "firebase/firestore";
-import { ArrowLeft, Check, Trash2, Undo2 } from "lucide-react";
+import { ArrowLeft, Check, Pencil, Repeat, Trash2, Undo2 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { RecurrencePicker } from "@/components/tasks/recurrence-picker";
+import { useToast } from "@/components/shared/toast-provider";
 import { useAuth } from "@/hooks/use-auth";
 import { useCurrentHousehold } from "@/hooks/use-household";
 import { useTask } from "@/hooks/use-tasks";
 import {
+  completeRecurringTask,
   completeTask,
   deleteTask,
   uncompleteTask,
+  updateTask,
   userDoc,
 } from "@/lib/firebase/firestore";
+import { describeRRule, getNextOccurrence } from "@/lib/recurrence";
 
 const EFFORT_LABEL: Record<string, string> = {
   quick: "Rapide",
@@ -29,9 +34,12 @@ export default function TaskDetailPage() {
   const { household } = useCurrentHousehold();
   const { task, loading, notFound } = useTask(household?.id, taskId);
 
+  const { showToast } = useToast();
   const [assigneeName, setAssigneeName] = useState<string | null>(null);
   const [actionPending, setActionPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [editingRecurrence, setEditingRecurrence] = useState(false);
+  const [draftRecurrence, setDraftRecurrence] = useState<string | null>(null);
 
   useEffect(() => {
     if (!task?.assigneeId) {
@@ -60,9 +68,24 @@ export default function TaskDetailPage() {
     try {
       if (task.status === "done") {
         await uncompleteTask(household.id, task.id);
-      } else {
-        await completeTask(household.id, task.id, user.uid);
+        return;
       }
+      // Tâche récurrente : clone+update next, sinon completion classique
+      if (task.recurrenceRule && task.dueDate) {
+        const due = task.dueDate.toDate();
+        const next = getNextOccurrence(task.recurrenceRule, due, due);
+        if (next) {
+          await completeRecurringTask(household.id, task, user.uid, next);
+          const label = next.toLocaleDateString("fr-FR", {
+            weekday: "long",
+            day: "numeric",
+            month: "long",
+          });
+          showToast({ message: `Fait ✓ Prochaine : ${label}` });
+          return;
+        }
+      }
+      await completeTask(household.id, task.id, user.uid);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Action impossible. Réessaie.",
@@ -70,6 +93,27 @@ export default function TaskDetailPage() {
     } finally {
       setActionPending(false);
     }
+  }
+
+  async function handleSaveRecurrence() {
+    if (!household || !task) return;
+    setActionPending(true);
+    try {
+      await updateTask(household.id, task.id, {
+        recurrenceRule: draftRecurrence ?? undefined,
+      });
+      showToast({ message: "Récurrence mise à jour" });
+      setEditingRecurrence(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erreur de mise à jour.");
+    } finally {
+      setActionPending(false);
+    }
+  }
+
+  function startEditRecurrence() {
+    setDraftRecurrence(task?.recurrenceRule ?? null);
+    setEditingRecurrence(true);
   }
 
   async function handleDelete() {
@@ -198,6 +242,68 @@ export default function TaskDetailPage() {
               </span>
             </div>
           </div>
+        </section>
+
+        {/* Récurrence */}
+        <section className="flex flex-col gap-3">
+          <div className="flex items-baseline justify-between">
+            <h2 className="text-[0.6875rem] uppercase tracking-[0.12em] text-muted-foreground">
+              Récurrence
+            </h2>
+            {!editingRecurrence ? (
+              <button
+                type="button"
+                onClick={startEditRecurrence}
+                className="text-[12px] text-primary hover:text-[var(--primary-hover)] transition-colors flex items-center gap-1"
+              >
+                <Pencil size={11} />
+                Modifier
+              </button>
+            ) : null}
+          </div>
+          {editingRecurrence ? (
+            <div className="rounded-[14px] border border-border bg-surface px-4 py-4 flex flex-col gap-4">
+              <RecurrencePicker
+                value={draftRecurrence}
+                onChange={setDraftRecurrence}
+                disabled={actionPending}
+              />
+              <div className="flex gap-2 justify-end">
+                <button
+                  type="button"
+                  onClick={() => setEditingRecurrence(false)}
+                  disabled={actionPending}
+                  className="px-3 py-1.5 text-[13px] text-muted-foreground hover:text-foreground"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveRecurrence}
+                  disabled={actionPending}
+                  className="px-3 py-1.5 rounded-[10px] bg-primary text-primary-foreground text-[13px] font-semibold shadow-[0_0_10px_rgba(255,107,36,0.35)] hover:bg-[var(--primary-hover)] transition-colors disabled:opacity-50"
+                >
+                  Enregistrer
+                </button>
+              </div>
+              <p className="text-[11px] text-foreground-faint leading-[1.5]">
+                S&apos;applique à toutes les futures occurrences.
+              </p>
+            </div>
+          ) : task.recurrenceRule ? (
+            <div className="rounded-[14px] border border-border bg-surface px-4 py-3 flex items-center gap-2.5">
+              <Repeat size={16} className="text-primary shrink-0" />
+              <span className="text-[14px] text-foreground">
+                {describeRRule(task.recurrenceRule)}
+              </span>
+            </div>
+          ) : (
+            <div className="rounded-[14px] border border-border-subtle bg-transparent px-4 py-3">
+              <span className="text-[13px] text-muted-foreground">
+                Tâche unique
+              </span>
+            </div>
+          )}
         </section>
 
         <section className="flex flex-col gap-2">

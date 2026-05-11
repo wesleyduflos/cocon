@@ -232,6 +232,7 @@ export interface CreateTaskInput {
   assigneeId?: string;
   effort?: Task["effort"];
   dueDate?: Timestamp;
+  recurrenceRule?: string;
 }
 
 /**
@@ -250,6 +251,7 @@ export async function createTask(
     effort: input.effort,
     status: "pending",
     dueDate: input.dueDate,
+    recurrenceRule: input.recurrenceRule,
     createdBy: input.createdBy,
     createdAt: serverTimestamp() as unknown as Timestamp,
     updatedAt: serverTimestamp() as unknown as Timestamp,
@@ -286,6 +288,58 @@ export async function uncompleteTask(
     completedAt: deleteField(),
     completedBy: deleteField(),
     updatedAt: serverTimestamp() as unknown as Timestamp,
+  });
+}
+
+/**
+ * Complétion d'une tâche récurrente : crée un doc "done" figé pour
+ * l'historique et avance la dueDate du doc actif sur la prochaine
+ * occurrence calculée via RRULE. Si le calcul de la prochaine occurrence
+ * échoue (ou pas de dueDate), retombe sur completeTask classique.
+ *
+ * Retourne la prochaine date d'occurrence (utile pour le toast).
+ */
+export async function completeRecurringTask(
+  householdId: string,
+  task: WithId<Task>,
+  userId: string,
+  nextOccurrence: Date,
+): Promise<void> {
+  if (!task.dueDate || !task.recurrenceRule) {
+    await completeTask(householdId, task.id, userId);
+    return;
+  }
+
+  await runTransaction(db, async (tx) => {
+    const activeRef = householdTaskDoc(householdId, task.id);
+    const cloneRef = doc(householdTasksCollection(householdId));
+
+    // Doc figé pour l'historique : reprend les champs métier de la tâche
+    // mais sans la RRULE (l'instance complétée n'a pas vocation à se
+    // reproduire) et avec recurrenceSeriesId pointant vers le doc actif.
+    tx.set(cloneRef, {
+      title: task.title,
+      description: task.description,
+      category: task.category,
+      assigneeId: task.assigneeId,
+      effort: task.effort,
+      status: "done",
+      dueDate: task.dueDate,
+      completedAt: serverTimestamp() as unknown as Timestamp,
+      completedBy: userId,
+      recurrenceSeriesId: task.id,
+      notes: task.notes,
+      attachmentIds: task.attachmentIds,
+      createdAt: serverTimestamp() as unknown as Timestamp,
+      createdBy: task.createdBy,
+      updatedAt: serverTimestamp() as unknown as Timestamp,
+    });
+
+    // Doc actif : on avance la dueDate et on garde le statut pending.
+    tx.update(activeRef, {
+      dueDate: FirestoreTimestamp.fromDate(nextOccurrence),
+      updatedAt: serverTimestamp(),
+    });
   });
 }
 
