@@ -119,6 +119,71 @@ export interface Task {
   updatedAt: Timestamp;
 }
 
+// ---------- Shopping ----------
+
+export type ShoppingStatus = "pending" | "bought";
+
+export type ShoppingRayon =
+  | "Frais"
+  | "Épicerie"
+  | "Hygiène"
+  | "Boulangerie"
+  | "Boissons"
+  | "Animalerie"
+  | "Maison"
+  | "Autre";
+
+export interface ShoppingItem {
+  name: string;
+  emoji?: string;
+  quantity: number;
+  unit?: string; // "pcs", "kg", "L", etc.
+  rayon: ShoppingRayon;
+  notes?: string;
+  attachmentIds?: string[];
+  status: ShoppingStatus;
+  boughtAt?: Timestamp;
+  boughtBy?: string;
+  stockItemId?: string;
+  /** True si l'item a été ajouté via une tap sur la grille des essentiels. */
+  fromQuickAdd: boolean;
+  /** Auto-ajouté quand un stock lié est passé à low/empty. */
+  fromStockAuto?: boolean;
+  /** UID des membres qui ont vu la note depuis sa dernière modification. */
+  noteSeenBy?: string[];
+  addedAt: Timestamp;
+  addedBy: string;
+}
+
+export interface QuickAddItem {
+  name: string;
+  emoji: string;
+  defaultRayon: ShoppingRayon;
+  defaultUnit?: string;
+  position: number;
+}
+
+// ---------- Attachment (polymorphe) ----------
+
+export type AttachmentKind = "image" | "url" | "voice-note" | "document";
+export type AttachmentItemType =
+  | "task"
+  | "shopping-item"
+  | "memory-entry";
+
+export interface Attachment {
+  itemType: AttachmentItemType;
+  itemId: string;
+  kind: AttachmentKind;
+  url: string;
+  thumbnailUrl?: string;
+  label?: string;
+  mimeType?: string;
+  sizeBytes?: number;
+  createdAt: Timestamp;
+  createdBy: string;
+}
+
 // ---------- Calendar event ----------
 
 export type CalendarSource = "local" | "google" | "outlook";

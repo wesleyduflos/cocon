@@ -19,7 +19,7 @@ interface NavTab {
 const TABS: NavTab[] = [
   { href: "/", icon: House, label: "Accueil" },
   { href: "/tasks", icon: ListChecks, label: "Tâches" },
-  { href: "/courses", icon: ShoppingBag, label: "Courses" },
+  { href: "/shopping", icon: ShoppingBag, label: "Courses" },
   { href: "/calendar", icon: Calendar, label: "Agenda" },
   { href: "/more", icon: MoreHorizontal, label: "Plus" },
 ];

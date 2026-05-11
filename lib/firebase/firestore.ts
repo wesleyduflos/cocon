@@ -24,10 +24,14 @@ import {
 
 import {
   DEFAULT_USER_PREFERENCES,
+  type Attachment,
   type CalendarEvent,
   type Household,
   type HouseholdMember,
   type Invitation,
+  type QuickAddItem,
+  type ShoppingItem,
+  type ShoppingRayon,
   type Task,
   type User,
   type UserPreferences,
@@ -57,6 +61,9 @@ export const householdMemberConverter = makeConverter<HouseholdMember>();
 export const taskConverter = makeConverter<Task>();
 export const invitationConverter = makeConverter<Invitation>();
 export const calendarEventConverter = makeConverter<CalendarEvent>();
+export const shoppingItemConverter = makeConverter<ShoppingItem>();
+export const quickAddItemConverter = makeConverter<QuickAddItem>();
+export const attachmentConverter = makeConverter<Attachment>();
 
 /* =========================================================================
    References typées
@@ -152,6 +159,65 @@ export function householdCalendarEventDoc(
   ).withConverter(calendarEventConverter);
 }
 
+export function shoppingItemsCollection(
+  householdId: string,
+): CollectionReference<ShoppingItem> {
+  return collection(
+    db,
+    "households",
+    householdId,
+    "shopping-items",
+  ).withConverter(shoppingItemConverter);
+}
+
+export function shoppingItemDoc(
+  householdId: string,
+  itemId: string,
+): DocumentReference<ShoppingItem> {
+  return doc(
+    db,
+    "households",
+    householdId,
+    "shopping-items",
+    itemId,
+  ).withConverter(shoppingItemConverter);
+}
+
+export function quickAddItemsCollection(
+  householdId: string,
+): CollectionReference<QuickAddItem> {
+  return collection(
+    db,
+    "households",
+    householdId,
+    "quick-add-items",
+  ).withConverter(quickAddItemConverter);
+}
+
+export function quickAddItemDoc(
+  householdId: string,
+  itemId: string,
+): DocumentReference<QuickAddItem> {
+  return doc(
+    db,
+    "households",
+    householdId,
+    "quick-add-items",
+    itemId,
+  ).withConverter(quickAddItemConverter);
+}
+
+export function attachmentsCollection(
+  householdId: string,
+): CollectionReference<Attachment> {
+  return collection(
+    db,
+    "households",
+    householdId,
+    "attachments",
+  ).withConverter(attachmentConverter);
+}
+
 /* =========================================================================
    Helpers de création / mise à jour
    ========================================================================= */
@@ -245,6 +311,17 @@ export async function createHousehold(
     userId: input.ownerId,
     role: "owner",
     joinedAt: serverTimestamp() as unknown as Timestamp,
+  });
+
+  // Seed des defaults (8 essentiels + 7 templates de préparation). On le
+  // fait fire-and-forget : un échec ici ne doit pas casser la création
+  // du cocon (les helpers reseed* depuis /settings/cocon permettent de
+  // rattraper plus tard).
+  Promise.all([
+    seedQuickAddItems(ref.id),
+    seedChecklistTemplates(ref.id),
+  ]).catch((err) => {
+    console.warn("[createHousehold] seed defaults failed:", err);
   });
 
   return ref.id;
@@ -390,6 +467,155 @@ export async function deleteTask(
   taskId: string,
 ): Promise<void> {
   await deleteDoc(householdTaskDoc(householdId, taskId));
+}
+
+/* =========================================================================
+   Shopping items
+   ========================================================================= */
+
+export interface CreateShoppingItemInput {
+  name: string;
+  rayon: ShoppingRayon;
+  addedBy: string;
+  emoji?: string;
+  quantity?: number;
+  unit?: string;
+  notes?: string;
+  fromQuickAdd?: boolean;
+  fromStockAuto?: boolean;
+  stockItemId?: string;
+}
+
+export async function createShoppingItem(
+  householdId: string,
+  input: CreateShoppingItemInput,
+): Promise<string> {
+  const ref = await addDoc(shoppingItemsCollection(householdId), {
+    name: input.name,
+    emoji: input.emoji,
+    quantity: input.quantity ?? 1,
+    unit: input.unit,
+    rayon: input.rayon,
+    notes: input.notes,
+    status: "pending",
+    fromQuickAdd: input.fromQuickAdd ?? false,
+    fromStockAuto: input.fromStockAuto,
+    stockItemId: input.stockItemId,
+    addedBy: input.addedBy,
+    addedAt: serverTimestamp() as unknown as Timestamp,
+  });
+  return ref.id;
+}
+
+export async function incrementShoppingItemQuantity(
+  householdId: string,
+  itemId: string,
+  by = 1,
+): Promise<void> {
+  // L'app affichant la liste en realtime, on lit puis on écrit ;
+  // l'incrément Firestore est dispo mais on garde un set transactionnel
+  // pour respecter ignoreUndefinedProperties.
+  const ref = shoppingItemDoc(householdId, itemId);
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) return;
+    const current = snap.data().quantity ?? 1;
+    tx.update(ref, { quantity: current + by });
+  });
+}
+
+export async function checkShoppingItem(
+  householdId: string,
+  itemId: string,
+  userId: string,
+): Promise<void> {
+  await updateDoc(shoppingItemDoc(householdId, itemId), {
+    status: "bought",
+    boughtAt: serverTimestamp() as unknown as Timestamp,
+    boughtBy: userId,
+  });
+}
+
+export async function uncheckShoppingItem(
+  householdId: string,
+  itemId: string,
+): Promise<void> {
+  await updateDoc(shoppingItemDoc(householdId, itemId), {
+    status: "pending",
+    boughtAt: deleteField(),
+    boughtBy: deleteField(),
+  });
+}
+
+export async function deleteShoppingItem(
+  householdId: string,
+  itemId: string,
+): Promise<void> {
+  await deleteDoc(shoppingItemDoc(householdId, itemId));
+}
+
+export async function updateShoppingItemNotes(
+  householdId: string,
+  itemId: string,
+  notes: string,
+): Promise<void> {
+  await updateDoc(shoppingItemDoc(householdId, itemId), {
+    notes: notes.trim() || deleteField(),
+    noteSeenBy: deleteField(), // reset les "vues" à chaque édition
+  });
+}
+
+/* =========================================================================
+   Quick-add items (grille des essentiels)
+   ========================================================================= */
+
+/**
+ * Stub temporaire — remplacé au Bloc F par le vrai seed des 7 checklist
+ * templates. Garde createHousehold idempotent en attendant.
+ */
+export async function seedChecklistTemplates(
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  householdId: string,
+): Promise<{ created: number }> {
+  return { created: 0 };
+}
+
+/** Les 8 essentiels seedés à la création d'un cocon. */
+export const DEFAULT_QUICK_ADD_ITEMS: Omit<QuickAddItem, "position">[] = [
+  { name: "Lait", emoji: "🥛", defaultRayon: "Frais", defaultUnit: "L" },
+  { name: "Pain", emoji: "🥖", defaultRayon: "Boulangerie" },
+  { name: "Œufs", emoji: "🥚", defaultRayon: "Frais", defaultUnit: "pcs" },
+  { name: "Beurre", emoji: "🧈", defaultRayon: "Frais" },
+  { name: "Yaourts", emoji: "🍶", defaultRayon: "Frais", defaultUnit: "pcs" },
+  { name: "Fromage", emoji: "🧀", defaultRayon: "Frais" },
+  { name: "Pâtes", emoji: "🍝", defaultRayon: "Épicerie" },
+  { name: "Café", emoji: "☕", defaultRayon: "Épicerie" },
+];
+
+/**
+ * Seed les 8 quick-add items par défaut. Idempotent : si la collection
+ * contient déjà des items, ne fait rien sauf force=true qui efface puis re-seed.
+ */
+export async function seedQuickAddItems(
+  householdId: string,
+  options: { force?: boolean } = {},
+): Promise<{ created: number }> {
+  const existing = await getDocs(quickAddItemsCollection(householdId));
+  if (existing.size > 0 && !options.force) {
+    return { created: 0 };
+  }
+  if (existing.size > 0 && options.force) {
+    await Promise.all(existing.docs.map((d) => deleteDoc(d.ref)));
+  }
+  await Promise.all(
+    DEFAULT_QUICK_ADD_ITEMS.map((item, index) =>
+      addDoc(quickAddItemsCollection(householdId), {
+        ...item,
+        position: index,
+      }),
+    ),
+  );
+  return { created: DEFAULT_QUICK_ADD_ITEMS.length };
 }
 
 /* =========================================================================
