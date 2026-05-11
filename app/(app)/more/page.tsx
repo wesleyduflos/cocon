@@ -1,9 +1,15 @@
-import { BookOpen, NotebookPen, Settings, Sparkles } from "lucide-react";
+import {
+  BookOpen,
+  Box,
+  CheckSquare,
+  NotebookPen,
+  Settings,
+  Sparkles,
+} from "lucide-react";
 import Link from "next/link";
 
 interface Card {
   href: string;
-  emoji: string;
   icon: typeof BookOpen;
   title: string;
   subtitle: string;
@@ -12,17 +18,29 @@ interface Card {
 
 const CARDS: Card[] = [
   {
-    href: "/more",
+    href: "/memory",
     icon: BookOpen,
-    emoji: "📚",
     title: "Mémoire",
     subtitle: "Codes, contacts, manuels",
-    available: false,
+    available: true,
+  },
+  {
+    href: "/stocks",
+    icon: Box,
+    title: "Stocks",
+    subtitle: "Réserves du foyer",
+    available: true,
+  },
+  {
+    href: "/preparations",
+    icon: CheckSquare,
+    title: "Préparations",
+    subtitle: "Routines & checklists",
+    available: true,
   },
   {
     href: "/more",
     icon: NotebookPen,
-    emoji: "📓",
     title: "Journal",
     subtitle: "L'histoire du cocon",
     available: false,
@@ -30,15 +48,13 @@ const CARDS: Card[] = [
   {
     href: "/more",
     icon: Sparkles,
-    emoji: "✨",
-    title: "Assistant",
-    subtitle: "IA · suggestions",
+    title: "Assistant IA",
+    subtitle: "Suggestions",
     available: false,
   },
   {
     href: "/settings",
     icon: Settings,
-    emoji: "⚙️",
     title: "Paramètres",
     subtitle: "Profil, cocon, apparence",
     available: true,
@@ -48,7 +64,7 @@ const CARDS: Card[] = [
 export default function MorePage() {
   return (
     <main className="flex flex-1 flex-col px-5 py-7">
-      <div className="w-full max-w-md mx-auto flex flex-col gap-6">
+      <div className="w-full max-w-md mx-auto flex flex-col gap-5">
         <header className="flex flex-col gap-1.5">
           <p className="text-[0.6875rem] uppercase tracking-[0.12em] text-muted-foreground">
             Plus
@@ -60,23 +76,29 @@ export default function MorePage() {
 
         <div className="grid grid-cols-2 gap-3">
           {CARDS.map((card) => {
+            const Icon = card.icon;
             const content = (
               <article
                 className={`rounded-[14px] border bg-surface px-4 py-5 flex flex-col gap-2 h-full transition-colors ${
                   card.available
                     ? "border-border hover:bg-surface-elevated"
-                    : "border-border-subtle opacity-70"
+                    : "border-border-subtle opacity-60"
                 }`}
               >
-                <div className="text-[28px]">{card.emoji}</div>
-                <p className="text-[15px] font-semibold leading-tight">
+                <Icon
+                  size={22}
+                  className={
+                    card.available ? "text-primary" : "text-foreground-faint"
+                  }
+                />
+                <p className="text-[14px] font-semibold leading-tight">
                   {card.title}
                 </p>
-                <p className="text-[12px] text-muted-foreground leading-snug">
+                <p className="text-[11px] text-muted-foreground leading-snug">
                   {card.subtitle}
                 </p>
                 {!card.available ? (
-                  <span className="text-[10px] uppercase tracking-[0.1em] text-foreground-faint mt-1">
+                  <span className="text-[10px] uppercase tracking-[0.1em] text-foreground-faint mt-auto">
                     Bientôt
                   </span>
                 ) : null}

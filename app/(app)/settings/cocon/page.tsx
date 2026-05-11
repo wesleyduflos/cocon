@@ -1,14 +1,26 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, RotateCcw } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 
 import { useToast } from "@/components/shared/toast-provider";
 import { useAuth } from "@/hooks/use-auth";
+import { useChecklistTemplates } from "@/hooks/use-checklists";
 import { useCurrentHousehold } from "@/hooks/use-household";
 import { useMembers } from "@/hooks/use-members";
-import { updateHousehold } from "@/lib/firebase/firestore";
+import { useMemoryEntries } from "@/hooks/use-memory";
+import {
+  useQuickAddItems,
+  useShoppingItems,
+} from "@/hooks/use-shopping";
+import { useStocks } from "@/hooks/use-stocks";
+import { useTasks } from "@/hooks/use-tasks";
+import {
+  seedChecklistTemplates,
+  seedQuickAddItems,
+  updateHousehold,
+} from "@/lib/firebase/firestore";
 
 const EMOJI_CHOICES = ["🏠", "🪴", "🕯️", "🔥", "🦊", "🌿", "☕", "✨"];
 
@@ -21,6 +33,16 @@ export default function CoconSettingsPage() {
   const [name, setName] = useState("");
   const [emoji, setEmoji] = useState("🏠");
   const [submitting, setSubmitting] = useState(false);
+  const [reseedingQa, setReseedingQa] = useState(false);
+  const [reseedingPrep, setReseedingPrep] = useState(false);
+
+  // Compteurs des modules
+  const { tasks } = useTasks(household?.id);
+  const { items: shoppingItems } = useShoppingItems(household?.id);
+  const { items: quickAdd } = useQuickAddItems(household?.id);
+  const { stocks } = useStocks(household?.id);
+  const { entries: memoryEntries } = useMemoryEntries(household?.id);
+  const { templates } = useChecklistTemplates(household?.id);
 
   useEffect(() => {
     if (!household) return;
@@ -39,6 +61,46 @@ export default function CoconSettingsPage() {
       showToast({ message: "Cocon mis à jour" });
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleReseedQuickAdd() {
+    if (!household) return;
+    if (
+      !window.confirm(
+        "Réinitialiser la grille des essentiels (efface les personnalisations) ?",
+      )
+    )
+      return;
+    setReseedingQa(true);
+    try {
+      const result = await seedQuickAddItems(household.id, { force: true });
+      showToast({
+        message: `${result.created} essentiels réinitialisés`,
+      });
+    } finally {
+      setReseedingQa(false);
+    }
+  }
+
+  async function handleReseedTemplates() {
+    if (!household) return;
+    if (
+      !window.confirm(
+        "Réinitialiser les 7 préparations par défaut (efface les modifications) ?",
+      )
+    )
+      return;
+    setReseedingPrep(true);
+    try {
+      const result = await seedChecklistTemplates(household.id, {
+        force: true,
+      });
+      showToast({
+        message: `${result.created} préparations réinitialisées`,
+      });
+    } finally {
+      setReseedingPrep(false);
     }
   }
 
@@ -166,7 +228,99 @@ export default function CoconSettingsPage() {
             </Link>
           ) : null}
         </section>
+
+        {/* Compteurs */}
+        <section className="flex flex-col gap-3">
+          <h2 className="text-[0.6875rem] uppercase tracking-[0.12em] text-muted-foreground">
+            Contenu du cocon
+          </h2>
+          <div className="grid grid-cols-2 gap-2">
+            <Counter label="Tâches" emoji="✓" value={tasks.length} />
+            <Counter
+              label="Articles courses"
+              emoji="🛒"
+              value={shoppingItems.length}
+            />
+            <Counter
+              label="Stocks"
+              emoji="📦"
+              value={stocks.length}
+            />
+            <Counter
+              label="Mémoire"
+              emoji="📚"
+              value={memoryEntries.length}
+            />
+            <Counter
+              label="Essentiels"
+              emoji="⭐"
+              value={quickAdd.length}
+            />
+            <Counter
+              label="Préparations"
+              emoji="🗂️"
+              value={templates.length}
+            />
+          </div>
+        </section>
+
+        {/* Reseed (owner only) */}
+        {isOwner ? (
+          <section className="flex flex-col gap-3">
+            <h2 className="text-[0.6875rem] uppercase tracking-[0.12em] text-muted-foreground">
+              Réinitialisations
+            </h2>
+            <p className="text-[12px] text-foreground-faint leading-snug">
+              Restaure les jeux par défaut. Tes personnalisations sont
+              écrasées.
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={handleReseedQuickAdd}
+                disabled={reseedingQa}
+                className="rounded-[12px] border border-border bg-surface px-3 py-3 text-[13px] font-medium hover:bg-surface-elevated transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                <RotateCcw size={14} />
+                {reseedingQa ? "..." : "Essentiels"}
+              </button>
+              <button
+                type="button"
+                onClick={handleReseedTemplates}
+                disabled={reseedingPrep}
+                className="rounded-[12px] border border-border bg-surface px-3 py-3 text-[13px] font-medium hover:bg-surface-elevated transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                <RotateCcw size={14} />
+                {reseedingPrep ? "..." : "Préparations"}
+              </button>
+            </div>
+          </section>
+        ) : null}
       </div>
     </main>
+  );
+}
+
+function Counter({
+  label,
+  emoji,
+  value,
+}: {
+  label: string;
+  emoji: string;
+  value: number;
+}) {
+  return (
+    <article className="rounded-[12px] border border-border bg-surface px-3 py-2.5 flex items-center gap-2.5">
+      <span className="text-[18px]">{emoji}</span>
+      <div className="flex-1 flex flex-col">
+        <span className="font-display text-[18px] font-semibold leading-none">
+          {value}
+        </span>
+        <span className="text-[10px] uppercase tracking-[0.1em] text-foreground-faint">
+          {label}
+        </span>
+      </div>
+    </article>
   );
 }
