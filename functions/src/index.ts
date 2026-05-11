@@ -8,3 +8,4 @@ export {
   syncGoogleCalendar,
   disconnectGoogle,
 } from "./googleCalendar";
+export { sendTaskReminder, sendNotificationTest } from "./notifications";

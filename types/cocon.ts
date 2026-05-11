@@ -111,6 +111,8 @@ export interface Task {
   recurrenceRule?: string; // sprint 2 — RRULE iCal (ex: "FREQ=WEEKLY;BYDAY=TU")
   /** Id du doc actif de la série (la tâche complétée pointe vers son original). */
   recurrenceSeriesId?: string; // sprint 2
+  /** Sprint 2 — dernière fois qu'une notification de rappel a été envoyée pour cette tâche. */
+  reminderSentAt?: Timestamp;
   checklistRunId?: string; // sprint 3
   createdAt: Timestamp;
   createdBy: string;

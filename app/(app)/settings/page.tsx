@@ -39,10 +39,10 @@ const CARDS: SettingsCard[] = [
     available: true,
   },
   {
-    href: "/settings",
+    href: "/settings/notifications",
     icon: Bell,
     title: "Notifications",
-    available: false,
+    available: true,
   },
   {
     href: "/settings/connectors",
