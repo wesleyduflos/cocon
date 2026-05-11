@@ -1,0 +1,13 @@
+# Force LF line endings on commit, regardless of platform. Avoids the
+# `LF will be replaced by CRLF` warnings on Windows and keeps the repo
+# consistent between Windows dev and the Netlify Linux build.
+* text=auto eol=lf
+
+# Binary types stay binary.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.svg binary
+*.webp binary
+*.woff2 binary
