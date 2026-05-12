@@ -31,17 +31,17 @@ export function AppHeader({
 }: AppHeaderProps) {
   return (
     <header
-      className={`flex items-center gap-3 px-5 pt-6 pb-2 ${
+      className={`flex items-center gap-3.5 px-5 pb-1 ${
         sticky ? "sticky top-0 z-10" : ""
       }`}
-      style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 1.5rem)" }}
+      style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 0.5rem)" }}
     >
       {/* Logo transparent, sans fond ni bordure, totalement fondu dans la page */}
       <Image
         src="/icons/trans.png"
         alt="Cocon"
-        width={52}
-        height={52}
+        width={56}
+        height={56}
         priority
         className="shrink-0"
         style={{
@@ -52,7 +52,7 @@ export function AppHeader({
       {/* Wordmark + subtitle */}
       <div className="flex-1 flex flex-col justify-center min-w-0">
         <h1
-          className="font-display font-bold text-[30px] leading-none tracking-[-0.025em]"
+          className="font-display font-bold text-[36px] leading-none tracking-[-0.03em]"
           style={{
             background: "linear-gradient(90deg, #FF6B24, #FFC845)",
             WebkitBackgroundClip: "text",
