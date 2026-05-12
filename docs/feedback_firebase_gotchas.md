@@ -170,6 +170,51 @@ Patterns appliqués pour le journal du foyer :
 
 Sans ces gardes, un simple `updateDoc(ref, { updatedAt })` regénérerait toutes les entries déjà créées.
 
+## 22. PowerShell `firebase functions:secrets:set` + paste = clé tronquée (sprint 4)
+
+Coller une clé API longue (OpenAI `sk-proj-...` ~160 chars) au prompt interactif de `firebase functions:secrets:set` plante systématiquement sur Windows : PowerShell ne capture que les premiers caractères. Symptôme : la fonction reçoit une clé du genre `"vvp"`, et OpenAI répond `invalid_api_key` (status 401).
+
+**Fix** : passer par un fichier temporaire et `--data-file` :
+
+```powershell
+notepad $env:TEMP\oai-key.txt
+# Coller la clé sur UNE seule ligne, sans newline final. Save + close.
+
+firebase functions:secrets:set OPENAI_API_KEY --data-file $env:TEMP\oai-key.txt
+firebase deploy --only functions:voiceParse --force
+Remove-Item $env:TEMP\oai-key.txt
+```
+
+Ou utiliser la web UI Secret Manager (`console.cloud.google.com/security/secret-manager`) qui n'a pas ce bug de paste.
+
+**Comment l'appliquer** : pour TOUS les futurs secrets API (Stripe, Sendgrid, etc.), ne jamais coller directement dans le terminal. Utiliser `--data-file` ou l'UI cloud.
+
+## 23. Wrapping Cloud Function stages dans try/catch (sprint 4)
+
+Sans wrapper d'erreur, une Cloud Function callable qui throw renvoie `Internal Server Error` (500) au client, sans aucun contexte. Quasi-impossible à diagnostiquer sans avoir accès aux logs serveur.
+
+**Pattern à appliquer dans toutes les Cloud Functions qui appellent des APIs externes** :
+
+```typescript
+function wrapError(stage: string, err: unknown): HttpsError {
+  const message = err instanceof Error ? err.message : String(err);
+  const status = (err as { status?: number }).status;
+  const code = (err as { code?: string }).code;
+  console.error(`[funcName] failed at stage=${stage}`, { message, code, status });
+  // Map codes connus vers messages FR utilisables côté UI
+  if (status === 401) return new HttpsError("failed-precondition", "Clé API invalide.");
+  if (status === 429) return new HttpsError("resource-exhausted", "Quota épuisé.");
+  return new HttpsError("internal", `Erreur ${stage}: ${message.slice(0, 200)}`);
+}
+
+try { /* whisper call */ } catch (err) { throw wrapError("whisper", err); }
+try { /* claude call */ } catch (err) { throw wrapError("claude", err); }
+```
+
+Le client reçoit alors un message actionnable au lieu d'`Internal`, et les logs serveur ont le stage explicite même si le CLI `firebase functions:log` tronque.
+
+**Comment l'appliquer** : à chaque nouvelle Cloud Function HTTPS qui touche une API externe, wrapper chaque appel dans son propre try/catch avec un `stage` nommé. Surface l'erreur typée au client. Évite 30 min de debugging à chaque incident.
+
 ## 21. Cloud Functions + collectionGroup queries = index composite obligatoire (sprint 4)
 
 `voiceParse` faisait une query `collectionGroup("ai-logs").where("type", "==", "voice-parse").where("createdBy", "==", uid).where("createdAt", ">=", monthStart)` pour le quota mensuel. Au premier appel en prod : `Internal error` côté callable, et dans les logs Cloud Functions : `FAILED_PRECONDITION: The query requires an index`.
