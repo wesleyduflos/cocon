@@ -197,7 +197,7 @@ export default function MemoryPage() {
                   return (
                     <Link
                       key={t}
-                      href={`/memory?type=${t}`}
+                      href={`/memory/cat/${t}`}
                       className="rounded-[14px] border border-border bg-surface px-4 py-3 flex items-center gap-3 hover:bg-surface-elevated"
                     >
                       <span className="text-[22px]">{TYPE_EMOJI[t]}</span>
