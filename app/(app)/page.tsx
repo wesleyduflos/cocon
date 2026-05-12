@@ -1,6 +1,13 @@
 "use client";
 
-import { AlertTriangle, Calendar, Mic, Sparkles } from "lucide-react";
+import {
+  AlertTriangle,
+  Calendar,
+  ChevronRight,
+  Mic,
+  ShoppingBag,
+  Sparkles,
+} from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
@@ -15,6 +22,7 @@ import { useActiveChecklistRuns } from "@/hooks/use-checklists";
 import { useCurrentHousehold } from "@/hooks/use-household";
 import { useMembers } from "@/hooks/use-members";
 import { useMemoryEntries } from "@/hooks/use-memory";
+import { useShoppingItems } from "@/hooks/use-shopping";
 import { useStocks } from "@/hooks/use-stocks";
 import { usePendingSuggestions } from "@/hooks/use-suggestions";
 import { useTasks } from "@/hooks/use-tasks";
@@ -165,6 +173,7 @@ export default function DashboardPage() {
   const { members } = useMembers(household?.memberIds);
   const { suggestions } = usePendingSuggestions(household?.id);
   const { stocks } = useStocks(household?.id);
+  const { items: shoppingItems } = useShoppingItems(household?.id);
   const { runs } = useActiveChecklistRuns(household?.id);
   const { entries: memoryEntries } = useMemoryEntries(household?.id);
   const { showToast } = useToast();
@@ -274,6 +283,11 @@ export default function DashboardPage() {
     );
     return sortByPriorityThenDue(filtered).slice(0, 4);
   }, [tasks]);
+
+  const shoppingPendingCount = useMemo(
+    () => shoppingItems.filter((i) => i.status === "pending").length,
+    [shoppingItems],
+  );
 
   const alerts = useMemo(
     () =>
@@ -417,6 +431,29 @@ export default function DashboardPage() {
             </ul>
           </section>
         ) : null}
+
+        {/* Liste de courses — card resumee toujours visible */}
+        <Link
+          href="/shopping"
+          className="rounded-[14px] border border-border-subtle bg-surface px-4 py-3 flex items-center gap-3 hover:bg-surface-elevated transition-colors"
+        >
+          <div className="w-10 h-10 rounded-[10px] bg-[rgba(255,107,36,0.12)] border border-[rgba(255,107,36,0.24)] flex items-center justify-center shrink-0">
+            <ShoppingBag size={18} className="text-primary" strokeWidth={2.2} />
+          </div>
+          <div className="flex-1 flex flex-col min-w-0">
+            <span className="text-[14px] font-medium leading-tight">
+              {shoppingPendingCount > 0
+                ? `${shoppingPendingCount} article${shoppingPendingCount > 1 ? "s" : ""} à acheter`
+                : "Liste de courses vide"}
+            </span>
+            <span className="text-[11px] text-muted-foreground leading-tight mt-0.5">
+              {shoppingPendingCount > 0
+                ? "Tap pour voir la liste"
+                : "Tap pour ajouter"}
+            </span>
+          </div>
+          <ChevronRight size={16} className="text-foreground-faint shrink-0" />
+        </Link>
 
         {/* Tâches du jour */}
         {todayTasks.length > 0 && household && user ? (
