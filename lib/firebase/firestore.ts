@@ -443,7 +443,7 @@ export async function updateUserPreferences(
  */
 export async function updateHousehold(
   householdId: string,
-  patch: Partial<Pick<Household, "name" | "emoji">>,
+  patch: Partial<Pick<Household, "name" | "emoji" | "balanceEnabled">>,
 ): Promise<void> {
   await updateDoc(householdDoc(householdId), patch);
 }

@@ -52,6 +52,8 @@ export interface Household {
   memberIds: string[];
   /** Map des invitations actives, keyed par token. */
   invitations: Record<string, HouseholdInvitation>;
+  /** Sprint 4 — score d'équilibre opt-in, off par défaut. */
+  balanceEnabled?: boolean;
 }
 
 export type HouseholdMemberRole = "owner" | "member";

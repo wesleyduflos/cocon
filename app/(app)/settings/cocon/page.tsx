@@ -35,6 +35,7 @@ export default function CoconSettingsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [reseedingQa, setReseedingQa] = useState(false);
   const [reseedingPrep, setReseedingPrep] = useState(false);
+  const [togglingBalance, setTogglingBalance] = useState(false);
 
   // Compteurs des modules
   const { tasks } = useTasks(household?.id);
@@ -80,6 +81,22 @@ export default function CoconSettingsPage() {
       });
     } finally {
       setReseedingQa(false);
+    }
+  }
+
+  async function handleToggleBalance() {
+    if (!household) return;
+    setTogglingBalance(true);
+    try {
+      const next = !household.balanceEnabled;
+      await updateHousehold(household.id, { balanceEnabled: next });
+      showToast({
+        message: next
+          ? "Score d'équilibre activé"
+          : "Score d'équilibre désactivé",
+      });
+    } finally {
+      setTogglingBalance(false);
     }
   }
 
@@ -262,6 +279,42 @@ export default function CoconSettingsPage() {
               value={templates.length}
             />
           </div>
+        </section>
+
+        {/* Score d'équilibre (opt-in, off par défaut) */}
+        <section className="flex flex-col gap-3">
+          <h2 className="text-[0.6875rem] uppercase tracking-[0.12em] text-muted-foreground">
+            Score d&apos;équilibre
+          </h2>
+          <article className="rounded-[12px] border border-border bg-surface px-4 py-3 flex items-start gap-3">
+            <div className="flex-1 flex flex-col gap-1">
+              <span className="text-[14px] font-medium">
+                Afficher le score d&apos;équilibre
+              </span>
+              <span className="text-[12px] text-muted-foreground leading-snug">
+                Calculé à partir des tâches complétées. Donne une vue
+                partagée, pas une comparaison. Désactivable à tout moment.
+              </span>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={household?.balanceEnabled === true}
+              onClick={handleToggleBalance}
+              disabled={togglingBalance || !household}
+              className={`shrink-0 w-11 h-6 rounded-full relative transition-colors ${
+                household?.balanceEnabled
+                  ? "bg-primary"
+                  : "bg-border"
+              } disabled:opacity-50`}
+            >
+              <span
+                className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
+                  household?.balanceEnabled ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </article>
         </section>
 
         {/* Reseed (owner only) */}

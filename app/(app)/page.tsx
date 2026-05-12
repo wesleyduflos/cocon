@@ -13,6 +13,7 @@ import { useMembers, type MemberProfile } from "@/hooks/use-members";
 import { usePendingSuggestions } from "@/hooks/use-suggestions";
 import { useTasks } from "@/hooks/use-tasks";
 import { isVoiceCaptureSupported } from "@/lib/ai/voice-parse";
+import { calculateBalance, buildPersonalizedMessage } from "@/lib/balance/score";
 import {
   acceptSuggestion,
   dismissSuggestion,
@@ -95,6 +96,23 @@ export default function DashboardPage() {
     if (!user || !household) return undefined;
     return household.memberIds.find((id) => id !== user.uid);
   }, [household, user]);
+
+  const balance = useMemo(() => {
+    if (!household || !household.balanceEnabled) return null;
+    return calculateBalance(tasks, household.memberIds, "7d", new Date());
+  }, [household, tasks]);
+
+  const balanceMessage = useMemo(() => {
+    if (!balance) return "";
+    const nameByUid: Record<string, string> = {};
+    for (const m of members) nameByUid[m.uid] = m.displayName;
+    return buildPersonalizedMessage(
+      balance.balanceRatio,
+      balance.perMember,
+      balance.totalWeight,
+      nameByUid,
+    );
+  }, [balance, members]);
 
   async function handleAcceptSuggestion(s: WithId<Suggestion>) {
     if (!household || !user) return;
@@ -243,6 +261,65 @@ export default function DashboardPage() {
               );
             })
           : null}
+
+        {/* Score d'équilibre (opt-in) */}
+        {balance && household && members.length > 0 ? (
+          <Link
+            href="/balance"
+            className="rounded-[16px] bg-surface border border-border-subtle px-5 py-4 flex flex-col gap-3 hover:border-border transition-colors"
+          >
+            <p className="text-[0.6875rem] uppercase tracking-[0.12em] text-muted-foreground">
+              Équilibre du foyer · 7 jours
+            </p>
+            <div className="flex items-center gap-3">
+              {members.map((m) => {
+                const stats = balance.perMember[m.uid] ?? {
+                  weight: 0,
+                  count: 0,
+                  categories: [],
+                };
+                const maxW = Math.max(
+                  ...Object.values(balance.perMember).map((s) => s.weight),
+                  1,
+                );
+                const scale = 0.6 + (stats.weight / maxW) * 0.5; // 0.6 → 1.1
+                const initial = m.displayName.charAt(0).toUpperCase() || "?";
+                const isMe = m.uid === user?.uid;
+                return (
+                  <div
+                    key={m.uid}
+                    className="flex flex-col items-center gap-1"
+                    style={{ transform: `scale(${scale})` }}
+                  >
+                    <div
+                      className={`w-12 h-12 rounded-full flex items-center justify-center font-display font-semibold text-[16px] ${
+                        isMe
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-secondary text-secondary-foreground"
+                      }`}
+                    >
+                      {initial}
+                    </div>
+                    <span className="text-[10px] text-muted-foreground">
+                      {stats.count}
+                    </span>
+                  </div>
+                );
+              })}
+              <p className="flex-1 text-[13px] text-foreground leading-snug">
+                {balanceMessage}
+              </p>
+            </div>
+            <div className="h-1.5 rounded-full bg-surface-elevated overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-secondary to-primary"
+                style={{
+                  width: `${Math.max(8, (1 - balance.balanceRatio) * 100)}%`,
+                }}
+              />
+            </div>
+          </Link>
+        ) : null}
 
         {/* Tâches du jour */}
         {todayTasks.length > 0 && household && user ? (
