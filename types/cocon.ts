@@ -105,6 +105,8 @@ export interface Task {
   assigneeId?: string;
   effort?: TaskEffort;
   status: TaskStatus;
+  /** Sprint 5 — flag binaire prioritaire, remonte en haut de liste. */
+  priority?: boolean;
   dueDate?: Timestamp;
   completedAt?: Timestamp;
   completedBy?: string;

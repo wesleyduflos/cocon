@@ -15,6 +15,7 @@ import {
   isOverdue,
   isRecentlyCompleted,
 } from "@/lib/firebase/firestore";
+import { sortByPriorityThenDue } from "@/lib/tasks/sort";
 import type { Task, WithId } from "@/types/cocon";
 
 type Filter = "all" | "me" | "other" | "unassigned";
@@ -114,7 +115,14 @@ export default function TasksPage() {
       }
       later.push(t);
     }
-    return { today, overdue, week, later, recent };
+    // Sprint 5 B.4 : prioritaires en haut de chaque section temporelle
+    return {
+      today: sortByPriorityThenDue(today),
+      overdue: sortByPriorityThenDue(overdue),
+      week: sortByPriorityThenDue(week),
+      later: sortByPriorityThenDue(later),
+      recent,
+    };
   }, [filtered]);
 
   const pendingCount = useMemo(

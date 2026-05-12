@@ -1,6 +1,6 @@
 "use client";
 
-import { Repeat } from "lucide-react";
+import { Repeat, Star } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
@@ -113,6 +113,14 @@ export function TaskRow({ task, householdId, userId, overdue }: TaskRowProps) {
             isDone ? "line-through text-muted-foreground" : "text-foreground"
           }`}
         >
+          {task.priority ? (
+            <Star
+              size={13}
+              fill="var(--secondary)"
+              className="shrink-0 text-[var(--secondary)]"
+              aria-label="Tâche prioritaire"
+            />
+          ) : null}
           {task.recurrenceRule ? (
             <Repeat
               size={13}

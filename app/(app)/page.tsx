@@ -15,6 +15,7 @@ import { useTasks } from "@/hooks/use-tasks";
 import { useCurrentUserProfile } from "@/hooks/use-user-profile";
 import { isVoiceCaptureSupported } from "@/lib/ai/voice-parse";
 import { calculateBalance, buildPersonalizedMessage } from "@/lib/balance/score";
+import { sortByPriorityThenDue } from "@/lib/tasks/sort";
 import {
   acceptSuggestion,
   dismissSuggestion,
@@ -163,13 +164,12 @@ export default function DashboardPage() {
 
   const todayTasks = useMemo(() => {
     const now = new Date();
-    return tasks
-      .filter(
-        (t) =>
-          t.status === "pending" &&
-          (isOverdue(t, now) || isDueToday(t, now)),
-      )
-      .slice(0, 4);
+    const filtered = tasks.filter(
+      (t) =>
+        t.status === "pending" && (isOverdue(t, now) || isDueToday(t, now)),
+    );
+    // Prioritaires d'abord (sprint 5 B.4), puis due date, puis titre.
+    return sortByPriorityThenDue(filtered).slice(0, 4);
   }, [tasks]);
 
   const recentDone = useMemo(() => {

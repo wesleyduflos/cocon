@@ -593,6 +593,8 @@ export interface CreateTaskInput {
   effort?: Task["effort"];
   dueDate?: Timestamp;
   recurrenceRule?: string;
+  priority?: boolean;
+  notes?: string;
 }
 
 /**
@@ -610,8 +612,10 @@ export async function createTask(
     assigneeId: input.assigneeId,
     effort: input.effort,
     status: "pending",
+    priority: input.priority ?? false,
     dueDate: input.dueDate,
     recurrenceRule: input.recurrenceRule,
+    notes: input.notes,
     createdBy: input.createdBy,
     createdAt: serverTimestamp() as unknown as Timestamp,
     updatedAt: serverTimestamp() as unknown as Timestamp,

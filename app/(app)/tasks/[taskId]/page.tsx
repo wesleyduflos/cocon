@@ -1,7 +1,8 @@
 "use client";
 
 import { getDoc } from "firebase/firestore";
-import { ArrowLeft, Check, Pencil, Repeat, Trash2, Undo2 } from "lucide-react";
+import { ArrowLeft, Check, Pencil, Repeat, Star, Trash2, Undo2 } from "lucide-react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -177,15 +178,24 @@ export default function TaskDetailPage() {
         >
           <ArrowLeft size={18} />
         </button>
-        <button
-          type="button"
-          onClick={handleDelete}
-          disabled={actionPending}
-          aria-label="Supprimer"
-          className="w-9 h-9 rounded-[10px] bg-surface flex items-center justify-center hover:bg-destructive/20 hover:text-destructive transition-colors disabled:opacity-50"
-        >
-          <Trash2 size={18} />
-        </button>
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/tasks/${task.id}/edit`}
+            aria-label="Modifier"
+            className="w-9 h-9 rounded-[10px] bg-surface flex items-center justify-center hover:bg-surface-elevated transition-colors"
+          >
+            <Pencil size={16} />
+          </Link>
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={actionPending}
+            aria-label="Supprimer"
+            className="w-9 h-9 rounded-[10px] bg-surface flex items-center justify-center hover:bg-destructive/20 hover:text-destructive transition-colors disabled:opacity-50"
+          >
+            <Trash2 size={18} />
+          </button>
+        </div>
       </header>
 
       <div className="flex flex-col gap-6 max-w-md w-full mx-auto">
@@ -196,11 +206,20 @@ export default function TaskDetailPage() {
             </p>
           ) : null}
           <h1
-            className={`font-display text-[28px] font-semibold leading-[1.1] ${
+            className={`font-display text-[28px] font-semibold leading-[1.1] flex items-start gap-2 ${
               isDone ? "line-through text-muted-foreground" : ""
             }`}
           >
-            {task.title}
+            {task.priority ? (
+              <Star
+                size={24}
+                strokeWidth={2.2}
+                fill="var(--secondary)"
+                className="text-[var(--secondary)] mt-1 shrink-0"
+                aria-label="Tâche prioritaire"
+              />
+            ) : null}
+            <span>{task.title}</span>
           </h1>
           {task.description ? (
             <p className="text-[15px] text-muted-foreground leading-[1.5] whitespace-pre-wrap">
