@@ -7,6 +7,7 @@ import {
   type Timestamp,
   Timestamp as FirestoreTimestamp,
   addDoc,
+  arrayRemove,
   arrayUnion,
   collection,
   deleteDoc,
@@ -1571,6 +1572,26 @@ export async function lookupInviteCode(
   const data = snap.data();
   if (!data.active) return null;
   return data;
+}
+
+/**
+ * Retire un user du cocon (member non-owner). L'owner ne peut pas
+ * partir tant qu'il n'a pas transféré ownership ou supprimé le cocon —
+ * checker côté UI.
+ */
+export async function leaveHousehold(
+  householdId: string,
+  userId: string,
+): Promise<void> {
+  await updateDoc(householdDoc(householdId), {
+    memberIds: arrayRemove(userId),
+  });
+  try {
+    await deleteDoc(householdMemberDoc(householdId, userId));
+  } catch {
+    // Si le doc member/{uid} n'existe pas (cocon ancien sans subcollection),
+    // l'update memberIds a tout de même fait le travail.
+  }
 }
 
 /**

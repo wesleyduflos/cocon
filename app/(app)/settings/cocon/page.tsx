@@ -1,8 +1,16 @@
 "use client";
 
-import { ArrowLeft, Copy, KeyRound, RefreshCw, RotateCcw } from "lucide-react";
+import {
+  ArrowLeft,
+  Copy,
+  KeyRound,
+  LogOut,
+  RefreshCw,
+  RotateCcw,
+} from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useState, type FormEvent } from "react";
 
 import { MemberAvatar } from "@/components/shared/member-avatar";
 import { useToast } from "@/components/shared/toast-provider";
@@ -19,6 +27,8 @@ import { useStocks } from "@/hooks/use-stocks";
 import { useTasks } from "@/hooks/use-tasks";
 import {
   clearJournalEntries,
+  joinHouseholdByCode,
+  leaveHousehold,
   listJournalEntries,
   seedChecklistTemplates,
   seedQuickAddItems,
@@ -27,6 +37,7 @@ import {
 } from "@/lib/firebase/firestore";
 
 export default function CoconSettingsPage() {
+  const router = useRouter();
   const { user } = useAuth();
   const { household } = useCurrentHousehold();
   const { members } = useMembers(household?.memberIds);
@@ -39,6 +50,9 @@ export default function CoconSettingsPage() {
   const [exportingJournal, setExportingJournal] = useState(false);
   const [clearingJournal, setClearingJournal] = useState(false);
   const [regeneratingCode, setRegeneratingCode] = useState(false);
+  const [joinCode, setJoinCode] = useState("");
+  const [switching, setSwitching] = useState(false);
+  const [switchError, setSwitchError] = useState<string | null>(null);
 
   // Compteurs des modules
   const { tasks } = useTasks(household?.id);
@@ -86,6 +100,44 @@ export default function CoconSettingsPage() {
       showToast({ message: "Code copié" });
     } catch {
       showToast({ message: "Impossible de copier — recopie à la main." });
+    }
+  }
+
+  async function handleSwitchHousehold(event: FormEvent) {
+    event.preventDefault();
+    if (!user || !household) return;
+    if (isOwner) {
+      setSwitchError(
+        "Tu es l'owner de ce cocon — tu ne peux pas le quitter (transfert d'ownership non disponible pour le moment).",
+      );
+      return;
+    }
+    const normalized = joinCode.trim().toUpperCase();
+    if (normalized.length < 6) {
+      setSwitchError("Code à 6 caractères attendu.");
+      return;
+    }
+    if (
+      !window.confirm(
+        `Quitter le cocon actuel et rejoindre celui du code ${normalized} ? Tu perdras l'accès aux données du cocon actuel.`,
+      )
+    )
+      return;
+    setSwitchError(null);
+    setSwitching(true);
+    try {
+      // Quitter d'abord, sinon Firestore rejette le join (déjà dans 1 cocon).
+      await leaveHousehold(household.id, user.uid);
+      await joinHouseholdByCode(normalized, user.uid);
+      showToast({ message: "Bienvenue dans ton nouveau cocon" });
+      router.replace("/");
+    } catch (err) {
+      setSwitchError(
+        err instanceof Error
+          ? err.message
+          : "Impossible de rejoindre. Vérifie le code.",
+      );
+      setSwitching(false);
     }
   }
 
@@ -305,6 +357,56 @@ export default function CoconSettingsPage() {
               ) : null}
             </article>
           )}
+        </section>
+
+        {/* Rejoindre un autre cocon (basculement via code) */}
+        <section className="flex flex-col gap-3">
+          <h2 className="text-[0.6875rem] uppercase tracking-[0.12em] text-muted-foreground flex items-center gap-1.5">
+            <LogOut size={11} />
+            Rejoindre un autre cocon
+          </h2>
+          <form
+            onSubmit={handleSwitchHousehold}
+            className="rounded-[14px] border border-border bg-surface px-5 py-4 flex flex-col gap-3"
+          >
+            <p className="text-[12px] text-muted-foreground leading-snug">
+              Tape le code d&apos;un autre cocon pour le rejoindre. Tu
+              quitteras automatiquement le cocon actuel — un seul cocon
+              actif à la fois.
+            </p>
+            <input
+              type="text"
+              value={joinCode}
+              onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+              placeholder="ABCD12"
+              maxLength={6}
+              autoComplete="off"
+              autoCapitalize="characters"
+              spellCheck={false}
+              disabled={switching || isOwner}
+              className="rounded-[10px] border border-border bg-background px-4 py-3 text-[18px] font-display font-bold tracking-[0.2em] text-center uppercase focus:outline-none focus:border-primary focus:ring-2 focus:ring-[rgba(255,107,36,0.18)] disabled:opacity-50"
+            />
+            <button
+              type="submit"
+              disabled={switching || isOwner || joinCode.trim().length < 6}
+              className="rounded-[10px] bg-primary text-primary-foreground font-sans font-semibold text-[14px] px-4 py-2.5 shadow-[0_0_14px_rgba(255,107,36,0.35)] hover:bg-[var(--primary-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              <LogOut size={14} />
+              {switching ? "Bascule…" : "Quitter et rejoindre"}
+            </button>
+            {isOwner ? (
+              <p className="text-[11px] text-foreground-faint leading-snug">
+                Tu es owner du cocon actuel. Tu ne peux pas le quitter
+                tant que le transfert d&apos;ownership n&apos;est pas
+                disponible.
+              </p>
+            ) : null}
+            {switchError ? (
+              <p role="alert" className="text-[12px] text-destructive">
+                {switchError}
+              </p>
+            ) : null}
+          </form>
         </section>
 
         {/* Membres */}
