@@ -2,8 +2,9 @@
 
 import {
   AlertTriangle,
+  Box,
   Calendar,
-  ChevronRight,
+  CheckSquare,
   Mic,
   ShoppingBag,
   Sparkles,
@@ -12,6 +13,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { AppHeader } from "@/components/shared/app-header";
+import { DashCard } from "@/components/shared/dash-card";
 import { MemberAvatar } from "@/components/shared/member-avatar";
 import { TaskRow } from "@/components/tasks/task-row";
 import { useToast } from "@/components/shared/toast-provider";
@@ -289,6 +291,21 @@ export default function DashboardPage() {
     [shoppingItems],
   );
 
+  const stockLowCount = useMemo(
+    () =>
+      stocks.filter((s) => s.level === "low" || s.level === "empty").length,
+    [stocks],
+  );
+
+  const activeRun = useMemo(() => runs[0], [runs]);
+  const activeRunProgress = useMemo(() => {
+    if (!activeRun) return null;
+    return {
+      done: activeRun.completedTasks ?? 0,
+      total: activeRun.totalTasks ?? 0,
+    };
+  }, [activeRun]);
+
   const alerts = useMemo(
     () =>
       computeDashboardAlerts({
@@ -432,28 +449,44 @@ export default function DashboardPage() {
           </section>
         ) : null}
 
-        {/* Liste de courses — card resumee toujours visible */}
-        <Link
-          href="/shopping"
-          className="rounded-[14px] border border-border-subtle bg-surface px-4 py-3 flex items-center gap-3 hover:bg-surface-elevated transition-colors"
-        >
-          <div className="w-10 h-10 rounded-[10px] bg-[rgba(255,107,36,0.12)] border border-[rgba(255,107,36,0.24)] flex items-center justify-center shrink-0">
-            <ShoppingBag size={18} className="text-primary" strokeWidth={2.2} />
-          </div>
-          <div className="flex-1 flex flex-col min-w-0">
-            <span className="text-[14px] font-medium leading-tight">
-              {shoppingPendingCount > 0
+        {/* Raccourcis modules — cards harmonisées (<DashCard>) */}
+        <div className="flex flex-col gap-2">
+          <DashCard
+            icon={ShoppingBag}
+            tone="primary"
+            href="/shopping"
+            title={
+              shoppingPendingCount > 0
                 ? `${shoppingPendingCount} article${shoppingPendingCount > 1 ? "s" : ""} à acheter`
-                : "Liste de courses vide"}
-            </span>
-            <span className="text-[11px] text-muted-foreground leading-tight mt-0.5">
-              {shoppingPendingCount > 0
+                : "Liste de courses vide"
+            }
+            sublabel={
+              shoppingPendingCount > 0
                 ? "Tap pour voir la liste"
-                : "Tap pour ajouter"}
-            </span>
-          </div>
-          <ChevronRight size={16} className="text-foreground-faint shrink-0" />
-        </Link>
+                : "Tap pour ajouter"
+            }
+          />
+
+          {stockLowCount > 0 ? (
+            <DashCard
+              icon={Box}
+              tone="secondary"
+              href="/stocks"
+              title={`${stockLowCount} stock${stockLowCount > 1 ? "s" : ""} à renouveler`}
+              sublabel="Bas ou épuisés"
+            />
+          ) : null}
+
+          {activeRun && activeRunProgress ? (
+            <DashCard
+              icon={CheckSquare}
+              tone="success"
+              href="/preparations"
+              title={`${activeRun.templateEmoji ?? "🗂️"} ${activeRun.templateName}`}
+              sublabel={`Préparation en cours · ${activeRunProgress.done}/${activeRunProgress.total} tâches`}
+            />
+          ) : null}
+        </div>
 
         {/* Tâches du jour */}
         {todayTasks.length > 0 && household && user ? (
