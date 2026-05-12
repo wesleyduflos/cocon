@@ -841,6 +841,24 @@ export async function updateShoppingItemNotes(
   });
 }
 
+/**
+ * Met à jour un sous-ensemble des champs d'un article de courses
+ * (sprint 5 B.2). Le status (pending/bought) n'est pas modifiable ici —
+ * on a checkShoppingItem / uncheckShoppingItem dédiés.
+ */
+export async function updateShoppingItem(
+  householdId: string,
+  itemId: string,
+  patch: Partial<
+    Pick<
+      ShoppingItem,
+      "name" | "emoji" | "quantity" | "unit" | "rayon" | "notes"
+    >
+  >,
+): Promise<void> {
+  await updateDoc(shoppingItemDoc(householdId, itemId), patch);
+}
+
 /* =========================================================================
    Stocks
    ========================================================================= */
@@ -959,6 +977,22 @@ export async function deleteStockItem(
   stockId: string,
 ): Promise<void> {
   await deleteDoc(stockDoc(householdId, stockId));
+}
+
+/**
+ * Mise à jour des champs métadata d'un stock (sprint 5 B.3) : nom,
+ * emoji, lien à un quick-add. Le `level` passe TOUJOURS par
+ * updateStockLevel pour préserver l'history et le mécanisme
+ * d'auto-reorder.
+ */
+export async function updateStockItem(
+  householdId: string,
+  stockId: string,
+  patch: Partial<
+    Pick<StockItem, "name" | "emoji" | "linkedQuickAddItemId">
+  >,
+): Promise<void> {
+  await updateDoc(stockDoc(householdId, stockId), patch);
 }
 
 /* =========================================================================

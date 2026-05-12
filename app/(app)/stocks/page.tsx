@@ -1,6 +1,7 @@
 "use client";
 
-import { Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { useToast } from "@/components/shared/toast-provider";
@@ -224,6 +225,13 @@ export default function StocksPage() {
                         {nextStr ? ` · prochain prévu ${nextStr}` : ""}
                       </span>
                     </div>
+                    <Link
+                      href={`/stocks/${stock.id}/edit`}
+                      aria-label={`Modifier ${stock.name}`}
+                      className="w-8 h-8 rounded-[8px] flex items-center justify-center hover:bg-surface-elevated transition-colors text-muted-foreground"
+                    >
+                      <Pencil size={14} />
+                    </Link>
                     <button
                       type="button"
                       onClick={() => handleDelete(stock)}

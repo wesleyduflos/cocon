@@ -1,7 +1,8 @@
 "use client";
 
 import { onSnapshot } from "firebase/firestore";
-import { ArrowLeft, Trash2 } from "lucide-react";
+import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
+import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
@@ -111,15 +112,24 @@ export default function ShoppingItemDetailPage() {
         >
           <ArrowLeft size={18} />
         </button>
-        <button
-          type="button"
-          onClick={handleDelete}
-          disabled={busy}
-          aria-label="Supprimer"
-          className="w-9 h-9 rounded-[10px] bg-surface flex items-center justify-center hover:bg-destructive/20 hover:text-destructive transition-colors disabled:opacity-50"
-        >
-          <Trash2 size={18} />
-        </button>
+        <div className="flex items-center gap-2">
+          <Link
+            href={`/shopping/${item.id}/edit`}
+            aria-label="Modifier"
+            className="w-9 h-9 rounded-[10px] bg-surface flex items-center justify-center hover:bg-surface-elevated transition-colors"
+          >
+            <Pencil size={16} />
+          </Link>
+          <button
+            type="button"
+            onClick={handleDelete}
+            disabled={busy}
+            aria-label="Supprimer"
+            className="w-9 h-9 rounded-[10px] bg-surface flex items-center justify-center hover:bg-destructive/20 hover:text-destructive transition-colors disabled:opacity-50"
+          >
+            <Trash2 size={18} />
+          </button>
+        </div>
       </header>
 
       <div className="w-full max-w-md mx-auto flex flex-col gap-6">
