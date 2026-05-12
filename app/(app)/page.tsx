@@ -288,7 +288,7 @@ export default function DashboardPage() {
   );
 
   const householdSubtitle = household
-    ? `${household.emoji ? `${household.emoji} ` : ""}${household.name}${household.memberIds.length > 1 ? ` · ${household.memberIds.length} membres` : ""}`
+    ? `${household.name}${household.memberIds.length > 1 ? ` · ${household.memberIds.length} membres` : ""}`
     : undefined;
 
   const sortedEvents = useMemo(

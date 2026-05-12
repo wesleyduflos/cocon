@@ -31,13 +31,13 @@ export function AppHeader({
 }: AppHeaderProps) {
   return (
     <header
-      className={`flex items-center gap-3 px-5 h-16 bg-background ${
+      className={`flex items-center gap-3 px-5 h-16 ${
         sticky ? "sticky top-0 z-10" : ""
       }`}
     >
-      {/* Logo réel (image PNG) sans cadre, fondu dans la page */}
+      {/* Logo transparent, sans fond ni bordure, totalement fondu dans la page */}
       <Image
-        src="/icons/logo-mark.png"
+        src="/icons/logo-trans.png"
         alt="Cocon"
         width={44}
         height={44}
