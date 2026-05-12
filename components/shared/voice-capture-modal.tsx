@@ -35,6 +35,13 @@ interface Props {
   householdId: string;
   userId: string;
   otherMemberId?: string;
+  /**
+   * Si true, démarre l'enregistrement automatiquement à l'ouverture
+   * (pattern « 1-tap » du FAB micro — bug A.3 sprint 5).
+   * Le navigateur affichera le prompt de permission micro standard
+   * si jamais accordée.
+   */
+  autoStart?: boolean;
 }
 
 function formatElapsed(ms: number): string {
@@ -52,6 +59,7 @@ export function VoiceCaptureModal({
   householdId,
   userId,
   otherMemberId,
+  autoStart,
 }: Props) {
   const [state, setState] = useState<State>({ kind: "ready" });
   const [excludedIndexes, setExcludedIndexes] = useState<Set<number>>(new Set());
@@ -62,6 +70,7 @@ export function VoiceCaptureModal({
   const stopRecorderRef = useRef<(() => Promise<Blob>) | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const recordingStartRef = useRef<number>(0);
+  const autoStartTriggeredRef = useRef(false);
 
   // Reset when modal closes
   useEffect(() => {
@@ -78,8 +87,18 @@ export function VoiceCaptureModal({
       setState({ kind: "ready" });
       setExcludedIndexes(new Set());
       setEditedLabels({});
+      autoStartTriggeredRef.current = false;
     }
   }, [open]);
+
+  // Auto-start enregistrement à l'ouverture (1-tap pattern)
+  useEffect(() => {
+    if (open && autoStart && !autoStartTriggeredRef.current) {
+      autoStartTriggeredRef.current = true;
+      handleStart();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, autoStart]);
 
   async function handleStart() {
     try {

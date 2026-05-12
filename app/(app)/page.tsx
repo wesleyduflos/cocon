@@ -426,6 +426,7 @@ export default function DashboardPage() {
             householdId={household.id}
             userId={user.uid}
             otherMemberId={otherMemberId}
+            autoStart
           />
         </>
       ) : null}
