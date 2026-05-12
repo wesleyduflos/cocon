@@ -52,7 +52,8 @@ import {
 import { tokenize } from "@/lib/memory/tokenize";
 import { capHistory, predictNextRenewal, shouldAutoReorder } from "@/lib/stocks";
 
-import { db } from "./client";
+import { auth, db } from "./client";
+import { updateProfile } from "firebase/auth";
 
 /* =========================================================================
    Converters Firestore — strict typing à la lecture/écriture
@@ -487,12 +488,25 @@ export async function createUserDoc(input: CreateUserInput): Promise<void> {
 
 /**
  * Met à jour le displayName d'un user.
+ *
+ * Firestore est la source de vérité (lue par useCurrentUserProfile via
+ * onSnapshot), mais on synchronise aussi Firebase Auth en best-effort
+ * pour les anciens composants qui pourraient lire `auth.currentUser.displayName`
+ * (cf gotcha #24).
  */
 export async function updateUserDisplayName(
   uid: string,
   displayName: string,
 ): Promise<void> {
   await updateDoc(userDoc(uid), { displayName });
+  // Sync best-effort Firebase Auth si on update le current user
+  if (auth.currentUser?.uid === uid) {
+    try {
+      await updateProfile(auth.currentUser, { displayName });
+    } catch {
+      // Si ça plante, pas grave — Firestore reste source de vérité
+    }
+  }
 }
 
 /**

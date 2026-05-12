@@ -12,6 +12,7 @@ import { useCurrentHousehold } from "@/hooks/use-household";
 import { useMembers, type MemberProfile } from "@/hooks/use-members";
 import { usePendingSuggestions } from "@/hooks/use-suggestions";
 import { useTasks } from "@/hooks/use-tasks";
+import { useCurrentUserProfile } from "@/hooks/use-user-profile";
 import { isVoiceCaptureSupported } from "@/lib/ai/voice-parse";
 import { calculateBalance, buildPersonalizedMessage } from "@/lib/balance/score";
 import {
@@ -76,6 +77,7 @@ function MemberAvatar({
 
 export default function DashboardPage() {
   const { user } = useAuth();
+  const { profile } = useCurrentUserProfile();
   const { household } = useCurrentHousehold();
   const { tasks } = useTasks(household?.id);
   const { members } = useMembers(household?.memberIds);
@@ -149,8 +151,9 @@ export default function DashboardPage() {
     month: "long",
   });
 
-  const firstName =
-    user?.displayName?.split(" ")[0] ?? user?.email?.split("@")[0] ?? "toi";
+  // Lecture single source of truth Firestore via useCurrentUserProfile
+  // (Firebase Auth peut etre stale, cf gotcha #24).
+  const firstName = profile?.firstName ?? "toi";
 
   const summary = useMemo(
     () =>
