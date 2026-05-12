@@ -49,13 +49,6 @@ export default function ShoppingPage() {
   const { items, loading } = useShoppingItems(household?.id);
   const { items: quickAdd } = useQuickAddItems(household?.id);
 
-  // 2 premières cards par rayon dépliées par défaut, le reste plié.
-  // Le numéro 2 ne fait pas grand sens parce qu'on a un ordre déterministe :
-  // on prend les 2 premiers rayons avec items pending.
-  const [expandedRayons, setExpandedRayons] = useState<Set<ShoppingRayon>>(
-    new Set(),
-  );
-
   const pending = useMemo(
     () => items.filter((i) => i.status === "pending"),
     [items],
@@ -73,20 +66,17 @@ export default function ShoppingPage() {
     return map;
   }, [pending]);
 
-  // Init expandedRayons : les 2 premiers rayons avec contenu
-  const rayonsWithContent = RAYON_ORDER.filter((r) => (byRayon.get(r)?.length ?? 0) > 0);
-  const autoExpanded = new Set([...rayonsWithContent.slice(0, 2)]);
-  const effectiveExpanded = new Set([...autoExpanded, ...expandedRayons]);
+  // Set des rayons COLLAPSED. Tous les rayons sont expanded par defaut ;
+  // l'user en met explicitement certains dans le set pour les replier.
+  // Simple, predictible, fonctionne dans tous les sens (replier puis
+  // re-deplier sans bug).
+  const [collapsedRayons, setCollapsedRayons] = useState<Set<ShoppingRayon>>(
+    new Set(),
+  );
 
   function toggleRayon(r: ShoppingRayon) {
-    setExpandedRayons((prev) => {
+    setCollapsedRayons((prev) => {
       const next = new Set(prev);
-      if (autoExpanded.has(r) && !prev.has(r)) {
-        // Collapse explicitly an auto-expanded rayon
-        // Use a sentinel marker — store "collapsed" rayons separately
-        // Simpler : just toggle by always including / excluding.
-        next.add(r); // ensure tracking
-      }
       if (next.has(r)) next.delete(r);
       else next.add(r);
       return next;
@@ -94,10 +84,7 @@ export default function ShoppingPage() {
   }
 
   function isExpanded(r: ShoppingRayon): boolean {
-    // L'utilisateur peut override l'auto-expansion : XOR entre auto et user
-    const userToggled = expandedRayons.has(r);
-    const auto = autoExpanded.has(r);
-    return auto ? !userToggled : userToggled;
+    return !collapsedRayons.has(r);
   }
 
   async function handleQuickAdd(quickItem: {
