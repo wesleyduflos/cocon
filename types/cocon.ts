@@ -25,6 +25,15 @@ export interface UserPreferences {
   quietHoursEnd: number; // 0-23, défaut 7
   notificationsEnabled: boolean;
   voiceCaptureEnabled: boolean;
+  /** Sprint 5 — géolocalisation pour la météo (Bloc F.9). */
+  location?: {
+    lat: number;
+    lng: number;
+    /** Nom optionnel pour affichage (« Paris », « Lyon »...). */
+    label?: string;
+  };
+  /** Sprint 5 — consent géoloc : null = pas encore demandé. */
+  locationConsent?: "granted" | "denied";
 }
 
 export interface User {

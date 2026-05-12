@@ -1,6 +1,6 @@
 "use client";
 
-import { Mic, Search, Sparkles } from "lucide-react";
+import { AlertTriangle, Mic, Search, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
@@ -8,13 +8,18 @@ import { AppHeader } from "@/components/shared/app-header";
 import { TaskRow } from "@/components/tasks/task-row";
 import { useToast } from "@/components/shared/toast-provider";
 import { VoiceCaptureModal } from "@/components/shared/voice-capture-modal";
+import { WeatherWidget } from "@/components/shared/weather-widget";
 import { useAuth } from "@/hooks/use-auth";
+import { useActiveChecklistRuns } from "@/hooks/use-checklists";
 import { useCurrentHousehold } from "@/hooks/use-household";
 import { useMembers, type MemberProfile } from "@/hooks/use-members";
+import { useMemoryEntries } from "@/hooks/use-memory";
+import { useStocks } from "@/hooks/use-stocks";
 import { usePendingSuggestions } from "@/hooks/use-suggestions";
 import { useTasks } from "@/hooks/use-tasks";
 import { useCurrentUserProfile } from "@/hooks/use-user-profile";
 import { isVoiceCaptureSupported } from "@/lib/ai/voice-parse";
+import { computeDashboardAlerts } from "@/lib/alerts/dashboard-alerts";
 import { calculateBalance, buildPersonalizedMessage } from "@/lib/balance/score";
 import { sortByPriorityThenDue } from "@/lib/tasks/sort";
 import {
@@ -84,6 +89,9 @@ export default function DashboardPage() {
   const { tasks } = useTasks(household?.id);
   const { members } = useMembers(household?.memberIds);
   const { suggestions } = usePendingSuggestions(household?.id);
+  const { stocks } = useStocks(household?.id);
+  const { runs } = useActiveChecklistRuns(household?.id);
+  const { entries: memoryEntries } = useMemoryEntries(household?.id);
   const { showToast } = useToast();
   const [busySuggestionId, setBusySuggestionId] = useState<string | null>(null);
   const [voiceOpen, setVoiceOpen] = useState(false);
@@ -173,6 +181,18 @@ export default function DashboardPage() {
     return sortByPriorityThenDue(filtered).slice(0, 4);
   }, [tasks]);
 
+  const alerts = useMemo(
+    () =>
+      computeDashboardAlerts({
+        stocks,
+        runs,
+        memoryEntries,
+        tasks,
+        now: new Date(),
+      }),
+    [stocks, runs, memoryEntries, tasks],
+  );
+
   const recentDone = useMemo(() => {
     const now = new Date();
     return tasks
@@ -207,20 +227,62 @@ export default function DashboardPage() {
       />
 
       <div className="w-full max-w-md mx-auto flex flex-col gap-7 px-5 pt-7 pb-7">
-        {/* Greeting */}
-        <section className="flex flex-col gap-2">
-          <p className="text-[0.6875rem] uppercase tracking-[0.12em] text-muted-foreground capitalize">
-            {today}
-          </p>
-          <h1 className="font-display text-[28px] font-semibold leading-[1.05]">
-            Bonjour <span className="greeting-gradient">{firstName}</span>
-          </h1>
-          {household ? (
-            <p className="text-[14px] text-muted-foreground leading-[1.5]">
-              {summary}
-            </p>
-          ) : null}
+        {/* Greeting + météo (Sprint 5 bloc F.2 + F.9) */}
+        <section className="flex flex-col gap-3">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex flex-col gap-1 flex-1 min-w-0">
+              <p className="text-[0.6875rem] uppercase tracking-[0.12em] text-muted-foreground capitalize">
+                {today}
+              </p>
+              <h1 className="font-display text-[28px] font-semibold leading-[1.05]">
+                Bonjour <span className="greeting-gradient">{firstName}</span>
+              </h1>
+              {household ? (
+                <p className="text-[14px] text-muted-foreground leading-[1.5]">
+                  {summary}
+                </p>
+              ) : null}
+            </div>
+            <WeatherWidget />
+          </div>
         </section>
+
+        {/* Alertes du foyer (Sprint 5 bloc F.6) — section masquée si vide */}
+        {alerts.length > 0 ? (
+          <section className="flex flex-col gap-2.5">
+            <div className="flex items-baseline gap-2.5">
+              <span className="w-[3px] h-[18px] rounded-full bg-gradient-to-b from-primary to-[var(--secondary)]" />
+              <h2 className="font-display text-[18px] font-semibold leading-tight flex-1 flex items-center gap-2">
+                <AlertTriangle
+                  size={15}
+                  className="text-primary"
+                  strokeWidth={2.4}
+                />
+                Alertes du foyer
+              </h2>
+              <span className="text-[11px] text-muted-foreground">
+                {alerts.length}
+              </span>
+            </div>
+            <ul className="flex flex-col gap-1.5">
+              {alerts.map((a, idx) => (
+                <li key={`${a.kind}-${idx}`}>
+                  <Link
+                    href={a.href}
+                    className="rounded-[10px] border border-border-subtle bg-surface px-3 py-2.5 flex items-center gap-2.5 hover:bg-surface-elevated transition-colors"
+                  >
+                    <span className="text-[16px] leading-none shrink-0">
+                      {a.emoji}
+                    </span>
+                    <span className="flex-1 text-[13px] leading-snug truncate">
+                      {a.title}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
 
         {/* Suggestions IA en attente */}
         {suggestions.length > 0
