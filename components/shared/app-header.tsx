@@ -6,17 +6,14 @@ import { useEffect, useRef, type ReactNode } from "react";
 /* =========================================================================
    <AppHeader> — sprint 5 polish
 
-   Header sticky qui se réduit progressivement au scroll. Approche
-   ultra-performante :
-   - Pas de useState (zéro re-render React au scroll)
-   - Mise à jour directe d'une CSS custom property `--hp` (0 → 1)
-     via `style.setProperty()` sur le ref du header
-   - Toutes les interpolations en CSS pur via `calc()` :
-     - Logo : transform scale (GPU, pas de reflow)
-     - Wordmark : transform scale (GPU)
-     - Background, border, padding : interpolés via CSS vars
-   - requestAnimationFrame throttle le listener
-   - Listener `passive` pour ne pas bloquer le scroll natif
+   Header sticky qui se réduit progressivement au scroll, fluide grâce à :
+   - CSS custom property `--hp` (0 → 1) mise à jour directement via
+     style.setProperty (zéro re-render React).
+   - rAF + listener passif pour throttler.
+   - Toutes les valeurs interpolées en CSS `calc(... * var(--hp))`.
+   - Animation directe de width/height/font-size sur ces 2-3 éléments
+     seulement (coût layout négligeable, et pas de clipping comme avec
+     transform: scale).
    ========================================================================= */
 
 interface AppHeaderProps {
@@ -56,14 +53,15 @@ export function AppHeader({ subtitle, actions }: AppHeaderProps) {
   return (
     <header
       ref={headerRef}
-      className="sticky top-0 z-30 flex items-center gap-3.5 px-5 will-change-[background-color,backdrop-filter]"
+      className="sticky top-0 z-30 flex items-center gap-3.5 px-5"
       style={
         {
-          // --hp est mis à jour via JS sans déclencher de re-render
           ["--hp" as string]: "0",
+          // Plein : safe-area + 18px top, 14px bottom (espace généreux)
+          // Compact : safe-area + 6px top, 6px bottom (header bien resserré)
           paddingTop:
-            "calc(env(safe-area-inset-top, 0px) + (0.5rem - var(--hp) * 0.25rem))",
-          paddingBottom: "calc(8px - var(--hp) * 4px)",
+            "calc(env(safe-area-inset-top, 0px) + 18px - var(--hp) * 12px)",
+          paddingBottom: "calc(14px - var(--hp) * 8px)",
           backgroundColor: "rgba(16, 6, 4, calc(var(--hp) * 0.85))",
           backdropFilter: "blur(calc(var(--hp) * 14px))",
           WebkitBackdropFilter: "blur(calc(var(--hp) * 14px))",
@@ -72,46 +70,42 @@ export function AppHeader({ subtitle, actions }: AppHeaderProps) {
         } as React.CSSProperties
       }
     >
-      {/* Logo : scale via transform (GPU). Wrapper conserve la place visuelle. */}
-      <div
-        className="shrink-0 w-14 h-14 flex items-center justify-start"
-        style={{ width: "calc(56px - var(--hp) * 24px)" }}
-      >
-        <Image
-          src="/icons/trans.png"
-          alt="Cocon"
-          width={56}
-          height={56}
-          priority
-          className="origin-left will-change-transform"
-          style={{
-            transform: "scale(calc(1 - var(--hp) * 0.43))",
-            filter: "drop-shadow(0 0 8px rgba(255,107,36,0.25))",
-          }}
-        />
-      </div>
+      {/* Logo : width/height anime directement (pas de transform/scale → 0 clip) */}
+      <Image
+        src="/icons/trans.png"
+        alt="Cocon"
+        width={56}
+        height={56}
+        priority
+        className="shrink-0"
+        style={{
+          width: "calc(56px - var(--hp) * 22px)",
+          height: "calc(56px - var(--hp) * 22px)",
+          filter: "drop-shadow(0 0 8px rgba(255,107,36,0.25))",
+        }}
+      />
 
       <div className="flex-1 flex flex-col justify-center min-w-0">
         <h1
-          className="font-display font-bold leading-none origin-left will-change-transform"
+          className="font-display font-bold leading-none truncate"
           style={{
-            fontSize: "36px",
-            letterSpacing: "-0.03em",
-            transform: "scale(calc(1 - var(--hp) * 0.45))",
+            // Plein : 36px. Compact : 22px. font-size anime directement,
+            // sans clipping (pas de height/scale combinés qui rognent).
+            fontSize: "calc(36px - var(--hp) * 14px)",
+            letterSpacing: "calc(-0.03em + var(--hp) * 0.01em)",
             background: "linear-gradient(90deg, #FF6B24, #FFC845)",
             WebkitBackgroundClip: "text",
             WebkitTextFillColor: "transparent",
             backgroundClip: "text",
-            height: "calc(36px - var(--hp) * 17px)",
           }}
         >
           Cocon
         </h1>
         {subtitle ? (
           <p
-            className="text-[12px] text-muted-foreground font-medium leading-tight truncate mt-1 will-change-[opacity,max-height]"
+            className="text-[12px] text-muted-foreground font-medium leading-tight truncate"
             style={{
-              opacity: "calc(1 - var(--hp) * 2)",
+              opacity: "calc(1 - var(--hp) * 1.8)",
               maxHeight: "calc(16px - var(--hp) * 16px)",
               marginTop: "calc(0.25rem - var(--hp) * 0.25rem)",
               overflow: "hidden",
