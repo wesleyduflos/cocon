@@ -39,6 +39,7 @@ import {
   type ShoppingRayon,
   type StockItem,
   type StockLevel,
+  type Suggestion,
   type Task,
   type User,
   type UserPreferences,
@@ -80,6 +81,7 @@ export const checklistTemplateConverter = makeConverter<ChecklistTemplate>();
 export const checklistTemplateItemConverter =
   makeConverter<ChecklistTemplateItem>();
 export const checklistRunConverter = makeConverter<ChecklistRun>();
+export const suggestionConverter = makeConverter<Suggestion>();
 
 /* =========================================================================
    References typées
@@ -335,6 +337,53 @@ export function checklistRunDoc(
     "checklist-runs",
     runId,
   ).withConverter(checklistRunConverter);
+}
+
+export function suggestionsCollection(
+  householdId: string,
+): CollectionReference<Suggestion> {
+  return collection(
+    db,
+    "households",
+    householdId,
+    "suggestions",
+  ).withConverter(suggestionConverter);
+}
+
+export function suggestionDoc(
+  householdId: string,
+  suggestionId: string,
+): DocumentReference<Suggestion> {
+  return doc(
+    db,
+    "households",
+    householdId,
+    "suggestions",
+    suggestionId,
+  ).withConverter(suggestionConverter);
+}
+
+export async function dismissSuggestion(
+  householdId: string,
+  suggestionId: string,
+  userId: string,
+): Promise<void> {
+  await updateDoc(suggestionDoc(householdId, suggestionId), {
+    status: "dismissed",
+    dismissedBy: userId,
+  });
+}
+
+export async function acceptSuggestion(
+  householdId: string,
+  suggestionId: string,
+  userId: string,
+): Promise<void> {
+  await updateDoc(suggestionDoc(householdId, suggestionId), {
+    status: "accepted",
+    actedBy: userId,
+    actedAt: serverTimestamp(),
+  });
 }
 
 /* =========================================================================
@@ -937,6 +986,7 @@ interface SeedTemplate {
   emoji: string;
   description: string;
   items: string[];
+  triggers?: Array<{ keyword: string; daysBefore: number }>;
 }
 
 const DEFAULT_CHECKLIST_TEMPLATES: SeedTemplate[] = [
@@ -955,6 +1005,10 @@ const DEFAULT_CHECKLIST_TEMPLATES: SeedTemplate[] = [
       "Programmer le thermostat",
       "Prévenir la voisine",
     ],
+    triggers: [
+      { keyword: "vacances", daysBefore: 5 },
+      { keyword: "départ", daysBefore: 5 },
+    ],
   },
   {
     name: "Soirée à la maison",
@@ -968,6 +1022,11 @@ const DEFAULT_CHECKLIST_TEMPLATES: SeedTemplate[] = [
       "Vérifier les toilettes",
       "Allumer les bougies",
     ],
+    triggers: [
+      { keyword: "soirée", daysBefore: 1 },
+      { keyword: "apéro", daysBefore: 1 },
+      { keyword: "dîner", daysBefore: 1 },
+    ],
   },
   {
     name: "Week-end",
@@ -978,6 +1037,10 @@ const DEFAULT_CHECKLIST_TEMPLATES: SeedTemplate[] = [
       "Vérifier essence et billets",
       "Programmer l'alarme",
       "Sortir les poubelles",
+    ],
+    triggers: [
+      { keyword: "week-end", daysBefore: 1 },
+      { keyword: "weekend", daysBefore: 1 },
     ],
   },
   {
@@ -1003,6 +1066,11 @@ const DEFAULT_CHECKLIST_TEMPLATES: SeedTemplate[] = [
       "Papier toilettes",
       "Vider les poubelles",
     ],
+    triggers: [
+      { keyword: "invités", daysBefore: 2 },
+      { keyword: "famille", daysBefore: 2 },
+      { keyword: "amis", daysBefore: 2 },
+    ],
   },
   {
     name: "Long voyage",
@@ -1013,6 +1081,12 @@ const DEFAULT_CHECKLIST_TEMPLATES: SeedTemplate[] = [
       "Préparer les devises",
       "Suspendre abonnements",
       "Copie passeport scannée",
+    ],
+    triggers: [
+      { keyword: "voyage", daysBefore: 7 },
+      { keyword: "vol", daysBefore: 7 },
+      { keyword: "avion", daysBefore: 7 },
+      { keyword: "train", daysBefore: 7 },
     ],
   },
 ];
@@ -1048,6 +1122,7 @@ export async function seedChecklistTemplates(
         name: t.name,
         emoji: t.emoji,
         description: t.description,
+        triggers: t.triggers ?? [],
         isSeeded: true,
         createdAt: now,
         updatedAt: now,

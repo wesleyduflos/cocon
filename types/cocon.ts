@@ -186,11 +186,20 @@ export interface Attachment {
 
 // ---------- Checklist templates & runs ----------
 
+export interface ChecklistTrigger {
+  /** Mot-clé à matcher dans le titre/description des événements (insensible accents/casse). */
+  keyword: string;
+  /** Nombre de jours avant l'événement où la suggestion doit apparaître. */
+  daysBefore: number;
+}
+
 export interface ChecklistTemplate {
   name: string;
   emoji: string;
   description?: string;
   isSeeded: boolean;
+  /** Sprint 4 : triggers pour suggestions automatiques depuis l'agenda. */
+  triggers?: ChecklistTrigger[];
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -241,6 +250,27 @@ export interface MemoryEntry {
   createdAt: Timestamp;
   createdBy: string;
   updatedAt: Timestamp;
+}
+
+// ---------- Suggestion (sprint 4) ----------
+
+export type SuggestionStatus = "pending" | "accepted" | "dismissed";
+export type SuggestionType = "preparation";
+
+export interface Suggestion {
+  type: SuggestionType;
+  templateId: string;
+  templateName: string;
+  templateEmoji: string;
+  triggerEventId: string;
+  triggerEventTitle: string;
+  triggerEventDate: Timestamp;
+  matchedKeyword: string;
+  status: SuggestionStatus;
+  createdAt: Timestamp;
+  dismissedBy?: string;
+  actedBy?: string;
+  actedAt?: Timestamp;
 }
 
 // ---------- Stock ----------

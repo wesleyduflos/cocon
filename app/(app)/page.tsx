@@ -1,19 +1,25 @@
 "use client";
 
+import { Sparkles } from "lucide-react";
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 import { TaskRow } from "@/components/tasks/task-row";
+import { useToast } from "@/components/shared/toast-provider";
 import { useAuth } from "@/hooks/use-auth";
 import { useCurrentHousehold } from "@/hooks/use-household";
 import { useMembers, type MemberProfile } from "@/hooks/use-members";
+import { usePendingSuggestions } from "@/hooks/use-suggestions";
 import { useTasks } from "@/hooks/use-tasks";
 import {
+  acceptSuggestion,
+  dismissSuggestion,
   isDueToday,
   isOverdue,
   isRecentlyCompleted,
+  launchChecklistRun,
 } from "@/lib/firebase/firestore";
-import type { Task, WithId } from "@/types/cocon";
+import type { Suggestion, Task, WithId } from "@/types/cocon";
 
 function getSummary(
   tasks: WithId<Task>[],
@@ -70,6 +76,38 @@ export default function DashboardPage() {
   const { household } = useCurrentHousehold();
   const { tasks } = useTasks(household?.id);
   const { members } = useMembers(household?.memberIds);
+  const { suggestions } = usePendingSuggestions(household?.id);
+  const { showToast } = useToast();
+  const [busySuggestionId, setBusySuggestionId] = useState<string | null>(null);
+
+  async function handleAcceptSuggestion(s: WithId<Suggestion>) {
+    if (!household || !user) return;
+    setBusySuggestionId(s.id);
+    try {
+      await launchChecklistRun(household.id, s.templateId, user.uid);
+      await acceptSuggestion(household.id, s.id, user.uid);
+      showToast({
+        message: `${s.templateEmoji} ${s.templateName} lancée`,
+      });
+    } catch (err) {
+      showToast({
+        message:
+          err instanceof Error ? err.message : "Lancement impossible.",
+      });
+    } finally {
+      setBusySuggestionId(null);
+    }
+  }
+
+  async function handleDismissSuggestion(s: WithId<Suggestion>) {
+    if (!household || !user) return;
+    setBusySuggestionId(s.id);
+    try {
+      await dismissSuggestion(household.id, s.id, user.uid);
+    } finally {
+      setBusySuggestionId(null);
+    }
+  }
 
   const today = new Date().toLocaleDateString("fr-FR", {
     weekday: "long",
@@ -126,6 +164,69 @@ export default function DashboardPage() {
             </p>
           ) : null}
         </section>
+
+        {/* Suggestions IA en attente */}
+        {suggestions.length > 0
+          ? suggestions.slice(0, 1).map((s) => {
+              const eventDate = s.triggerEventDate.toDate();
+              const startOfToday = new Date(
+                new Date().getFullYear(),
+                new Date().getMonth(),
+                new Date().getDate(),
+              );
+              const daysUntil = Math.floor(
+                (eventDate.getTime() - startOfToday.getTime()) /
+                  (24 * 60 * 60 * 1000),
+              );
+              const daysLabel =
+                daysUntil <= 0
+                  ? "aujourd'hui"
+                  : daysUntil === 1
+                    ? "demain"
+                    : `dans ${daysUntil} jours`;
+              const busy = busySuggestionId === s.id;
+              return (
+                <section
+                  key={s.id}
+                  className="rounded-[16px] bg-gradient-to-br from-[rgba(255,107,36,0.16)] to-[rgba(255,200,69,0.06)] border border-[rgba(255,107,36,0.32)] px-5 py-4 flex flex-col gap-3"
+                >
+                  <p className="text-[0.6875rem] uppercase tracking-[0.12em] text-primary font-semibold flex items-center gap-1.5">
+                    <Sparkles size={12} />
+                    Suggestion · {s.templateEmoji}
+                  </p>
+                  <h2 className="font-display text-[19px] font-semibold leading-[1.15]">
+                    {s.triggerEventTitle}
+                    <br />
+                    <span className="text-muted-foreground font-normal">
+                      arrive {daysLabel}
+                    </span>
+                  </h2>
+                  <p className="text-[13px] text-muted-foreground leading-[1.5]">
+                    Lance la préparation «&nbsp;{s.templateName}&nbsp;» pour
+                    ne rien oublier ?
+                  </p>
+                  <div className="flex gap-2 mt-1">
+                    <button
+                      type="button"
+                      onClick={() => handleAcceptSuggestion(s)}
+                      disabled={busy}
+                      className="flex-1 rounded-[10px] bg-primary text-primary-foreground font-sans font-semibold text-[14px] px-4 py-2.5 shadow-[0_0_14px_rgba(255,107,36,0.4)] hover:bg-[var(--primary-hover)] disabled:opacity-50"
+                    >
+                      {busy ? "..." : "Lancer"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDismissSuggestion(s)}
+                      disabled={busy}
+                      className="rounded-[10px] border border-border bg-transparent text-foreground font-sans font-medium text-[13px] px-4 py-2.5 hover:bg-surface-elevated disabled:opacity-50"
+                    >
+                      Plus tard
+                    </button>
+                  </div>
+                </section>
+              );
+            })
+          : null}
 
         {/* Tâches du jour */}
         {todayTasks.length > 0 && household && user ? (

@@ -19,3 +19,4 @@ export {
   listPasskeys,
   deletePasskey,
 } from "./passkeys";
+export { suggestPreparations } from "./suggestPreparations";
