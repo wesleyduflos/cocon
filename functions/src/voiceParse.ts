@@ -134,6 +134,46 @@ interface Input {
   householdId?: string;
 }
 
+function wrapError(stage: string, err: unknown): HttpsError {
+  const message = err instanceof Error ? err.message : String(err);
+  const code =
+    err && typeof err === "object" && "code" in err
+      ? (err as { code: unknown }).code
+      : undefined;
+  const status =
+    err && typeof err === "object" && "status" in err
+      ? (err as { status: unknown }).status
+      : undefined;
+  console.error(`[voiceParse] failed at stage=${stage}`, {
+    message,
+    code,
+    status,
+  });
+  // Map vers HttpsError pour que le client reçoive un message utile.
+  if (status === 401 || code === "invalid_api_key") {
+    return new HttpsError(
+      "failed-precondition",
+      "Clé OpenAI invalide côté serveur. Re-set le secret OPENAI_API_KEY.",
+    );
+  }
+  if (status === 429 || code === "insufficient_quota") {
+    return new HttpsError(
+      "resource-exhausted",
+      "Crédit OpenAI épuisé. Recharge le compte OpenAI.",
+    );
+  }
+  if (code === 9 || message.includes("FAILED_PRECONDITION")) {
+    return new HttpsError(
+      "failed-precondition",
+      "Index Firestore manquant ou en cours de construction. Réessaie dans 1 min.",
+    );
+  }
+  return new HttpsError(
+    "internal",
+    `Erreur au stage ${stage}: ${message.slice(0, 200)}`,
+  );
+}
+
 export const voiceParse = onCall(
   {
     secrets: [anthropicKey, openaiKey],
@@ -154,24 +194,35 @@ export const voiceParse = onCall(
       );
     }
 
-    // Vérifier appartenance au cocon
     const db = getFirestore();
-    const householdSnap = await db.doc(`households/${householdId}`).get();
-    const memberIds = householdSnap.get("memberIds") as string[] | undefined;
-    if (!memberIds?.includes(request.auth.uid)) {
-      throw new HttpsError(
-        "permission-denied",
-        "Tu n'es pas membre de ce cocon.",
-      );
+
+    // Vérifier appartenance au cocon
+    try {
+      const householdSnap = await db.doc(`households/${householdId}`).get();
+      const memberIds = householdSnap.get("memberIds") as string[] | undefined;
+      if (!memberIds?.includes(request.auth.uid)) {
+        throw new HttpsError(
+          "permission-denied",
+          "Tu n'es pas membre de ce cocon.",
+        );
+      }
+    } catch (err) {
+      if (err instanceof HttpsError) throw err;
+      throw wrapError("household-check", err);
     }
 
     // Vérifier quota
-    const quota = await checkMonthlyQuota(request.auth.uid);
-    if (quota.remaining === 0) {
-      throw new HttpsError(
-        "resource-exhausted",
-        `Quota mensuel atteint (${MONTHLY_QUOTA_PER_USER}/mois). Reset au 1er du mois.`,
-      );
+    try {
+      const quota = await checkMonthlyQuota(request.auth.uid);
+      if (quota.remaining === 0) {
+        throw new HttpsError(
+          "resource-exhausted",
+          `Quota mensuel atteint (${MONTHLY_QUOTA_PER_USER}/mois). Reset au 1er du mois.`,
+        );
+      }
+    } catch (err) {
+      if (err instanceof HttpsError) throw err;
+      throw wrapError("quota-check", err);
     }
 
     const startMs = Date.now();
@@ -185,18 +236,31 @@ export const voiceParse = onCall(
       );
     }
     const extension = mimeType?.includes("mp4") ? "m4a" : "webm";
+    console.log(
+      `[voiceParse] audio decoded: ${audioBuffer.length} bytes, mimeType=${mimeType}, ext=${extension}`,
+    );
 
     // 1) Whisper transcription
-    const openai = new OpenAI({ apiKey: openaiKey.value() });
-    const audioFile = new File([new Uint8Array(audioBuffer)], `voice.${extension}`, {
-      type: mimeType ?? "audio/webm",
-    });
-    const transcriptionResp = await openai.audio.transcriptions.create({
-      file: audioFile,
-      model: "whisper-1",
-      language: "fr",
-    });
-    const transcription = transcriptionResp.text.trim();
+    let transcription: string;
+    try {
+      const openai = new OpenAI({ apiKey: openaiKey.value() });
+      const audioFile = new File(
+        [new Uint8Array(audioBuffer)],
+        `voice.${extension}`,
+        { type: mimeType ?? "audio/webm" },
+      );
+      const transcriptionResp = await openai.audio.transcriptions.create({
+        file: audioFile,
+        model: "whisper-1",
+        language: "fr",
+      });
+      transcription = transcriptionResp.text.trim();
+      console.log(
+        `[voiceParse] whisper OK: ${transcription.length} chars transcribed`,
+      );
+    } catch (err) {
+      throw wrapError("whisper", err);
+    }
 
     if (transcription.length === 0) {
       // Audio inaudible / silence
@@ -204,42 +268,53 @@ export const voiceParse = onCall(
     }
 
     // 2) Claude multi-intentions
-    const anthropic = new Anthropic({ apiKey: anthropicKey.value() });
-    const claudeResp = await anthropic.messages.create({
-      model: "claude-haiku-4-5",
-      max_tokens: 1024,
-      system: [
-        {
-          type: "text",
-          text: SYSTEM_PROMPT,
-          cache_control: { type: "ephemeral" },
-        },
-      ],
-      tools: [TOOL],
-      tool_choice: { type: "tool", name: "extract_intents" },
-      messages: [{ role: "user", content: transcription }],
-    });
+    let intents: VoiceIntent[];
+    try {
+      const anthropic = new Anthropic({ apiKey: anthropicKey.value() });
+      const claudeResp = await anthropic.messages.create({
+        model: "claude-haiku-4-5",
+        max_tokens: 1024,
+        system: [
+          {
+            type: "text",
+            text: SYSTEM_PROMPT,
+            cache_control: { type: "ephemeral" },
+          },
+        ],
+        tools: [TOOL],
+        tool_choice: { type: "tool", name: "extract_intents" },
+        messages: [{ role: "user", content: transcription }],
+      });
 
-    const toolUse = claudeResp.content.find(
-      (b): b is Anthropic.Messages.ToolUseBlock =>
-        b.type === "tool_use" && b.name === "extract_intents",
-    );
-    const intents = toolUse
-      ? ((toolUse.input as { intents: VoiceIntent[] }).intents ?? [])
-      : [];
+      const toolUse = claudeResp.content.find(
+        (b): b is Anthropic.Messages.ToolUseBlock =>
+          b.type === "tool_use" && b.name === "extract_intents",
+      );
+      intents = toolUse
+        ? ((toolUse.input as { intents: VoiceIntent[] }).intents ?? [])
+        : [];
+      console.log(`[voiceParse] claude OK: ${intents.length} intents detected`);
+    } catch (err) {
+      throw wrapError("claude", err);
+    }
 
     const durationMs = Date.now() - startMs;
 
     // Log dans ai-logs — JAMAIS l'audio brut (privacy)
-    await db.collection(`households/${householdId}/ai-logs`).add({
-      type: "voice-parse",
-      input: transcription, // text only
-      output: { intents },
-      durationMs,
-      cost: 0, // approximation : ~0,008 €/note, on track plus précisément si besoin
-      createdAt: FieldValue.serverTimestamp(),
-      createdBy: request.auth.uid,
-    });
+    try {
+      await db.collection(`households/${householdId}/ai-logs`).add({
+        type: "voice-parse",
+        input: transcription, // text only
+        output: { intents },
+        durationMs,
+        cost: 0, // approximation : ~0,008 €/note, on track plus précisément si besoin
+        createdAt: FieldValue.serverTimestamp(),
+        createdBy: request.auth.uid,
+      });
+    } catch (err) {
+      // Log silencieux : on a déjà la réponse, ne pas faire échouer le call.
+      console.error("[voiceParse] ai-logs write failed (non-fatal)", err);
+    }
 
     return { transcription, intents };
   },
