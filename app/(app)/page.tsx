@@ -1,9 +1,10 @@
 "use client";
 
-import { Mic, Sparkles } from "lucide-react";
+import { Mic, Search, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
+import { AppHeader } from "@/components/shared/app-header";
 import { TaskRow } from "@/components/tasks/task-row";
 import { useToast } from "@/components/shared/toast-provider";
 import { VoiceCaptureModal } from "@/components/shared/voice-capture-modal";
@@ -184,9 +185,28 @@ export default function DashboardPage() {
       .slice(0, 5);
   }, [tasks]);
 
+  const householdSubtitle = household
+    ? `${household.emoji ? `${household.emoji} ` : ""}${household.name} · ${household.memberIds.length} membre${household.memberIds.length > 1 ? "s" : ""}`
+    : undefined;
+
   return (
-    <main className="flex flex-1 flex-col px-5 py-7">
-      <div className="w-full max-w-md mx-auto flex flex-col gap-7">
+    <main className="flex flex-1 flex-col">
+      {/* Sprint 5 bloc C : AppHeader (logo + wordmark + nom foyer) */}
+      <AppHeader
+        subtitle={householdSubtitle}
+        logoEmoji={household?.emoji ?? "🔥"}
+        actions={
+          <Link
+            href="/memory"
+            aria-label="Recherche"
+            className="w-9 h-9 rounded-[10px] bg-surface flex items-center justify-center hover:bg-surface-elevated transition-colors"
+          >
+            <Search size={16} className="text-muted-foreground" />
+          </Link>
+        }
+      />
+
+      <div className="w-full max-w-md mx-auto flex flex-col gap-7 px-5 pt-7 pb-7">
         {/* Greeting */}
         <section className="flex flex-col gap-2">
           <p className="text-[0.6875rem] uppercase tracking-[0.12em] text-muted-foreground capitalize">
