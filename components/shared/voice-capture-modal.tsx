@@ -1,9 +1,10 @@
 "use client";
 
 import { Timestamp } from "firebase/firestore";
-import { Check, Mic, Square, Trash2, X } from "lucide-react";
+import { Check, Mic, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { AudioWaveform } from "@/components/shared/audio-waveform";
 import { useToast } from "@/components/shared/toast-provider";
 import {
   parseVoiceNote,
@@ -24,7 +25,13 @@ import type {
 
 type State =
   | { kind: "ready" }
-  | { kind: "recording"; elapsedMs: number }
+  /** Demande de permission micro en cours, juste après tap FAB. */
+  | { kind: "starting" }
+  | {
+      kind: "recording";
+      elapsedMs: number;
+      stream: MediaStream;
+    }
   | { kind: "processing"; stage: "transcription" | "analysis" }
   | { kind: "result"; output: VoiceParseOutput }
   | { kind: "error"; message: string };
@@ -61,7 +68,11 @@ export function VoiceCaptureModal({
   otherMemberId,
   autoStart,
 }: Props) {
-  const [state, setState] = useState<State>({ kind: "ready" });
+  // Si autoStart, on commence directement en "starting" pour eviter le
+  // flash de l'ecran "ready" pendant la demande de permission micro.
+  const [state, setState] = useState<State>(
+    autoStart ? { kind: "starting" } : { kind: "ready" },
+  );
   const [excludedIndexes, setExcludedIndexes] = useState<Set<number>>(new Set());
   const [editedLabels, setEditedLabels] = useState<Record<number, string>>({});
   const [validating, setValidating] = useState(false);
@@ -84,12 +95,12 @@ export function VoiceCaptureModal({
         clearInterval(timerRef.current);
         timerRef.current = null;
       }
-      setState({ kind: "ready" });
+      setState(autoStart ? { kind: "starting" } : { kind: "ready" });
       setExcludedIndexes(new Set());
       setEditedLabels({});
       autoStartTriggeredRef.current = false;
     }
-  }, [open]);
+  }, [open, autoStart]);
 
   // Auto-start enregistrement à l'ouverture (1-tap pattern)
   useEffect(() => {
@@ -101,18 +112,23 @@ export function VoiceCaptureModal({
   }, [open, autoStart]);
 
   async function handleStart() {
+    setState({ kind: "starting" });
     try {
-      const { stop } = await startRecording();
+      const { stop, stream } = await startRecording();
       stopRecorderRef.current = stop;
       recordingStartRef.current = Date.now();
-      setState({ kind: "recording", elapsedMs: 0 });
+      setState({ kind: "recording", elapsedMs: 0, stream });
       timerRef.current = setInterval(() => {
         const elapsed = Date.now() - recordingStartRef.current;
         if (elapsed >= MAX_RECORDING_MS) {
           handleStop();
           return;
         }
-        setState({ kind: "recording", elapsedMs: elapsed });
+        setState((s) =>
+          s.kind === "recording"
+            ? { ...s, elapsedMs: elapsed }
+            : s,
+        );
       }, 200);
     } catch (err) {
       setState({
@@ -329,24 +345,66 @@ export function VoiceCaptureModal({
               L&apos;audio n&apos;est pas conservé après transcription. Limite 60s.
             </p>
           </div>
+        ) : state.kind === "starting" ? (
+          <div className="flex flex-col items-center gap-5 text-center">
+            <div className="relative w-24 h-24 flex items-center justify-center">
+              <div
+                className="absolute inset-0 rounded-full animate-ping opacity-40"
+                style={{
+                  background:
+                    "radial-gradient(circle, rgba(255,107,36,0.4), transparent 70%)",
+                }}
+              />
+              <div className="w-20 h-20 rounded-full bg-primary/15 border border-[rgba(255,107,36,0.32)] flex items-center justify-center">
+                <Mic size={28} className="text-primary" strokeWidth={2.2} />
+              </div>
+            </div>
+            <p className="text-[13px] text-muted-foreground">
+              Autorise le micro…
+            </p>
+          </div>
         ) : state.kind === "recording" ? (
-          <div className="flex flex-col items-center gap-6 text-center">
+          <div className="flex flex-col items-center gap-8 w-full text-center">
+            {/* Indicateur subtil : point qui clignote + label */}
+            <div className="flex items-center gap-2 text-[12px] uppercase tracking-[0.15em] text-muted-foreground">
+              <span
+                className="w-1.5 h-1.5 rounded-full bg-destructive animate-pulse"
+                style={{ boxShadow: "0 0 8px rgba(229,55,77,0.6)" }}
+              />
+              Enregistrement
+            </div>
+
+            {/* Timer en grand, doux */}
+            <div
+              className="font-display font-light tabular-nums"
+              style={{
+                fontSize: "56px",
+                lineHeight: 1,
+                letterSpacing: "-0.02em",
+                background: "linear-gradient(180deg, #FFF1E6, #FFC845)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+              }}
+            >
+              {formatElapsed(state.elapsedMs)}
+            </div>
+
+            {/* Waveform temps reel */}
+            <AudioWaveform stream={state.stream} height={64} bars={36} />
+
+            {/* Bouton stop subtil (pas rouge agressif) */}
             <button
               type="button"
               onClick={handleStop}
-              aria-label="Arrêter l'enregistrement"
-              className="w-28 h-28 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center animate-pulse"
+              aria-label="Terminer l'enregistrement"
+              className="mt-4 w-16 h-16 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-[0_0_24px_rgba(255,107,36,0.45)] hover:scale-105 active:scale-95 transition-transform"
             >
-              <Square size={36} strokeWidth={2.2} fill="currentColor" />
+              <span className="w-5 h-5 rounded-[4px] bg-primary-foreground" />
             </button>
-            <div className="flex flex-col items-center gap-1">
-              <span className="font-display text-[28px] font-semibold">
-                {formatElapsed(state.elapsedMs)}
-              </span>
-              <span className="text-[12px] text-muted-foreground">
-                Enregistrement…
-              </span>
-            </div>
+            <p className="text-[12px] text-foreground-faint">
+              Tape pour terminer
+            </p>
           </div>
         ) : state.kind === "processing" ? (
           <div className="flex flex-col items-center gap-4 text-center">
