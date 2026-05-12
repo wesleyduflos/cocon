@@ -1,13 +1,25 @@
 "use client";
 
 import { getDoc, getDocs } from "firebase/firestore";
-import { ArrowLeft, Download } from "lucide-react";
+import {
+  ArrowLeft,
+  Download,
+  FileWarning,
+  Sparkles,
+  Trash2,
+  Upload,
+} from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { useToast } from "@/components/shared/toast-provider";
 import { useAuth } from "@/hooks/use-auth";
 import { useCurrentHousehold } from "@/hooks/use-household";
+import {
+  clearHouseholdData,
+  importHouseholdData,
+  type ImportReport,
+} from "@/lib/data/import-data";
 import {
   checklistRunsCollection,
   checklistTemplatesCollection,
@@ -22,23 +34,6 @@ import {
   userDoc,
 } from "@/lib/firebase/firestore";
 
-/* =========================================================================
-   /settings/export — sprint 5 bloc G.3
-
-   Export RGPD client-side de toutes les donnees du cocon.
-
-   Approche : on parcourt toutes les sous-collections du household + le
-   doc users/{uid} de l'utilisateur courant, on serialise en JSON et on
-   declenche un download local. Pas de Cloud Function necessaire pour
-   un cocon perso (2 users, <1000 docs au total).
-   ========================================================================= */
-
-interface ExportSection {
-  label: string;
-  /** Function async qui retourne un tableau de docs serialisables. */
-  fetch: () => Promise<unknown[]>;
-}
-
 function serializeDoc(doc: {
   id: string;
   data: () => unknown;
@@ -47,7 +42,6 @@ function serializeDoc(doc: {
   const data = doc.data();
   if (!data || typeof data !== "object") return out;
   for (const [k, v] of Object.entries(data as Record<string, unknown>)) {
-    // Timestamps Firestore : on les serialise en ISO
     if (
       v &&
       typeof v === "object" &&
@@ -62,19 +56,47 @@ function serializeDoc(doc: {
   return out;
 }
 
-export default function ExportPage() {
+function formatReportLine(label: string, n: number): string | null {
+  if (n === 0) return null;
+  return `${n} ${label}${n > 1 ? "s" : ""}`;
+}
+
+function summarizeImport(r: ImportReport): string {
+  const parts = [
+    formatReportLine("tâche", r.tasks),
+    formatReportLine("article", r.shoppingItems),
+    formatReportLine("essentiel", r.quickAddItems),
+    formatReportLine("stock", r.stocks),
+    formatReportLine("entrée mémoire", r.memoryEntries),
+    formatReportLine("préparation", r.checklistTemplates),
+    formatReportLine("événement", r.calendarEvents),
+  ].filter((s): s is string => Boolean(s));
+  return parts.length === 0
+    ? "rien à importer"
+    : parts.join(", ");
+}
+
+export default function DataPage() {
   const { user } = useAuth();
   const { household } = useCurrentHousehold();
   const { showToast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
   const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [loadingDemo, setLoadingDemo] = useState(false);
+  const [clearing, setClearing] = useState(false);
 
   async function handleExport() {
     if (!user || !household) return;
     setExporting(true);
     try {
       const hid = household.id;
-
-      const sections: ExportSection[] = [
+      const sections: Array<{
+        label: string;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        fetch: () => Promise<any[]>;
+      }> = [
         {
           label: "tasks",
           fetch: async () => {
@@ -156,7 +178,6 @@ export default function ExportPage() {
         }
       }
 
-      // Profil utilisateur
       const userSnap = await getDoc(userDoc(user.uid));
       const userProfile = userSnap.exists()
         ? serializeDoc({ id: user.uid, data: () => userSnap.data() })
@@ -189,9 +210,7 @@ export default function ExportPage() {
         (acc, arr) => acc + (Array.isArray(arr) ? arr.length : 0),
         0,
       );
-      showToast({
-        message: `${totalDocs} documents exportés`,
-      });
+      showToast({ message: `${totalDocs} documents exportés` });
     } catch (err) {
       showToast({
         message:
@@ -203,6 +222,87 @@ export default function ExportPage() {
       setExporting(false);
     }
   }
+
+  async function handleImportFile(file: File) {
+    if (!household) return;
+    setImporting(true);
+    try {
+      const text = await file.text();
+      const payload = JSON.parse(text);
+      const report = await importHouseholdData(household.id, payload);
+      showToast({ message: `Import terminé : ${summarizeImport(report)}` });
+    } catch (err) {
+      showToast({
+        message:
+          err instanceof Error
+            ? `Import impossible : ${err.message}`
+            : "Fichier invalide.",
+      });
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  async function handleLoadDemo() {
+    if (!household) return;
+    if (
+      !window.confirm(
+        "Charger le jeu de démo ? Tes données actuelles seront conservées, les éléments de démo s'ajoutent en plus.",
+      )
+    )
+      return;
+    setLoadingDemo(true);
+    try {
+      const resp = await fetch("/demo-data.json");
+      if (!resp.ok) throw new Error("Démo introuvable");
+      const payload = await resp.json();
+      const report = await importHouseholdData(household.id, payload);
+      showToast({ message: `Démo chargée : ${summarizeImport(report)}` });
+    } catch (err) {
+      showToast({
+        message:
+          err instanceof Error
+            ? `Erreur démo : ${err.message}`
+            : "Démo indisponible.",
+      });
+    } finally {
+      setLoadingDemo(false);
+    }
+  }
+
+  async function handleClear() {
+    if (!household) return;
+    if (
+      !window.confirm(
+        "⚠️ Effacer TOUTES les données du foyer (tâches, courses, stocks, mémoire, préparations, calendrier, journal, suggestions) ? Cette action est IRRÉVERSIBLE.",
+      )
+    )
+      return;
+    if (
+      !window.confirm(
+        "Vraiment vraiment ? Pense à exporter avant si tu veux garder une copie.",
+      )
+    )
+      return;
+    setClearing(true);
+    try {
+      const report = await clearHouseholdData(household.id);
+      const total = Object.values(report).reduce<number>((a, b) => a + b, 0);
+      showToast({ message: `${total} documents supprimés` });
+    } catch (err) {
+      showToast({
+        message:
+          err instanceof Error
+            ? `Erreur : ${err.message}`
+            : "Suppression impossible.",
+      });
+    } finally {
+      setClearing(false);
+    }
+  }
+
+  const busy = exporting || importing || loadingDemo || clearing;
 
   return (
     <main className="flex flex-1 flex-col px-5 py-7">
@@ -220,46 +320,122 @@ export default function ExportPage() {
               Paramètres
             </p>
             <h1 className="font-display text-[22px] font-semibold leading-tight">
-              Exporter mes données
+              Mes données
             </h1>
           </div>
         </header>
 
+        {/* Export */}
         <section className="rounded-[14px] border border-border bg-surface px-5 py-5 flex flex-col gap-3">
-          <h2 className="font-display text-[18px] font-semibold">
-            Tout le contenu du cocon, en un fichier
-          </h2>
-          <p className="text-[13px] text-muted-foreground leading-[1.5]">
-            Conformément au RGPD, tu peux télécharger une copie complète des
-            données stockées par Cocon pour ton compte et ton foyer :
+          <div className="flex items-center gap-2.5">
+            <Download size={16} className="text-primary" />
+            <h2 className="font-display text-[16px] font-semibold">
+              Exporter
+            </h2>
+          </div>
+          <p className="text-[12px] text-muted-foreground leading-snug">
+            Télécharge une copie complète des données du foyer (tâches,
+            courses, stocks, mémoire, préparations, calendrier, journal,
+            suggestions, profil) au format JSON. Conforme RGPD.
           </p>
-          <ul className="text-[13px] text-foreground leading-[1.5] list-disc pl-5">
-            <li>Profil utilisateur et préférences</li>
-            <li>Tâches, courses, stocks, mémoire</li>
-            <li>Préparations (templates et exécutions)</li>
-            <li>Événements calendrier, suggestions IA</li>
-            <li>Journal du foyer</li>
-          </ul>
-          <p className="text-[12px] text-foreground-faint leading-snug mt-2">
-            Format JSON, conservé en local sur ton appareil après le download.
-            Cocon n&apos;envoie le fichier nulle part.
-          </p>
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={busy || !household}
+            className="rounded-[10px] bg-primary text-primary-foreground font-sans font-semibold text-[14px] px-4 py-2.5 shadow-[0_0_14px_rgba(255,107,36,0.35)] hover:bg-[var(--primary-hover)] transition-colors disabled:opacity-50 flex items-center justify-center gap-2 self-start"
+          >
+            <Download size={14} />
+            {exporting ? "Préparation…" : "Télécharger le JSON"}
+          </button>
         </section>
 
-        <button
-          type="button"
-          onClick={handleExport}
-          disabled={exporting || !user || !household}
-          className="rounded-[12px] bg-primary text-primary-foreground font-sans font-semibold text-[15px] px-[18px] py-3 shadow-[0_0_20px_rgba(255,107,36,0.35)] hover:bg-[var(--primary-hover)] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-        >
-          <Download size={16} />
-          {exporting ? "Préparation…" : "Télécharger toutes mes données"}
-        </button>
+        {/* Démo */}
+        <section className="rounded-[14px] border border-[rgba(255,107,36,0.32)] bg-gradient-to-br from-[rgba(255,107,36,0.12)] to-[rgba(255,200,69,0.04)] px-5 py-5 flex flex-col gap-3">
+          <div className="flex items-center gap-2.5">
+            <Sparkles
+              size={16}
+              className="text-primary"
+              strokeWidth={2.4}
+            />
+            <h2 className="font-display text-[16px] font-semibold">
+              Charger un jeu de démo
+            </h2>
+          </div>
+          <p className="text-[12px] text-muted-foreground leading-snug">
+            Importe un dataset réaliste (6 tâches, 5 articles, 4 stocks, 5
+            mémoires, 2 préparations, 4 événements) pour découvrir les
+            capacités de l&apos;app. Tes données actuelles sont conservées.
+          </p>
+          <button
+            type="button"
+            onClick={handleLoadDemo}
+            disabled={busy || !household}
+            className="rounded-[10px] bg-primary text-primary-foreground font-sans font-semibold text-[14px] px-4 py-2.5 shadow-[0_0_14px_rgba(255,107,36,0.35)] hover:bg-[var(--primary-hover)] transition-colors disabled:opacity-50 flex items-center justify-center gap-2 self-start"
+          >
+            <Sparkles size={14} />
+            {loadingDemo ? "Chargement…" : "Charger la démo"}
+          </button>
+        </section>
 
-        <p className="text-[11px] text-foreground-faint leading-snug">
-          Pour supprimer ton compte et toutes les données associées, va dans
-          Paramètres → Compte.
-        </p>
+        {/* Import */}
+        <section className="rounded-[14px] border border-border bg-surface px-5 py-5 flex flex-col gap-3">
+          <div className="flex items-center gap-2.5">
+            <Upload size={16} className="text-[#64A0FF]" />
+            <h2 className="font-display text-[16px] font-semibold">
+              Importer un fichier
+            </h2>
+          </div>
+          <p className="text-[12px] text-muted-foreground leading-snug">
+            Charge un fichier JSON exporté depuis Cocon (export complet ou
+            jeu de démo personnalisé). Les éléments importés s&apos;ajoutent
+            sans écraser tes données existantes.
+          </p>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="application/json,.json"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleImportFile(file);
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={busy || !household}
+            className="rounded-[10px] border border-[rgba(100,160,255,0.4)] bg-[rgba(100,160,255,0.08)] text-[#64A0FF] font-sans font-semibold text-[14px] px-4 py-2.5 hover:bg-[rgba(100,160,255,0.16)] transition-colors disabled:opacity-50 flex items-center justify-center gap-2 self-start"
+          >
+            <Upload size={14} />
+            {importing ? "Import…" : "Choisir un fichier JSON"}
+          </button>
+        </section>
+
+        {/* Effacer */}
+        <section className="rounded-[14px] border border-destructive/40 bg-[rgba(229,55,77,0.04)] px-5 py-5 flex flex-col gap-3">
+          <div className="flex items-center gap-2.5">
+            <FileWarning size={16} className="text-destructive" />
+            <h2 className="font-display text-[16px] font-semibold text-destructive">
+              Zone sensible — Effacer tout
+            </h2>
+          </div>
+          <p className="text-[12px] text-muted-foreground leading-snug">
+            Supprime <span className="font-semibold">définitivement</span> toutes
+            les données du foyer (tâches, courses, stocks, mémoire,
+            préparations, calendrier, journal, suggestions). Le foyer lui-même
+            et les comptes utilisateur restent. Action irréversible — exporte
+            avant si tu veux garder une copie.
+          </p>
+          <button
+            type="button"
+            onClick={handleClear}
+            disabled={busy || !household}
+            className="rounded-[10px] border border-destructive bg-transparent text-destructive font-sans font-semibold text-[14px] px-4 py-2.5 hover:bg-destructive/10 transition-colors disabled:opacity-50 flex items-center justify-center gap-2 self-start"
+          >
+            <Trash2 size={14} />
+            {clearing ? "Suppression…" : "Effacer toutes mes données"}
+          </button>
+        </section>
       </div>
     </main>
   );

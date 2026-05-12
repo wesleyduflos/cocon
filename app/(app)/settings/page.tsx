@@ -114,8 +114,8 @@ const GROUPS: SettingsGroup[] = [
       {
         href: "/settings/export",
         icon: Download,
-        title: "Exporter mes données",
-        subtitle: "Télécharger toutes les données du cocon (RGPD)",
+        title: "Mes données",
+        subtitle: "Exporter, importer, charger une démo, effacer",
         iconBg: "bg-[rgba(100,160,255,0.15)]",
         iconColor: "text-[#64A0FF]",
       },

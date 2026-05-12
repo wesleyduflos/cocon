@@ -1,0 +1,369 @@
+{
+  "_meta": {
+    "description": "Jeu de demo Cocon — illustre les capacites de l'app",
+    "version": "1.0.0",
+    "compatibleWith": "sprint-5+"
+  },
+  "tasks": [
+    {
+      "title": "Sortir les poubelles jaunes",
+      "category": "Maison",
+      "effort": "quick",
+      "priority": false,
+      "status": "pending",
+      "recurrenceRule": "FREQ=WEEKLY;BYDAY=TU",
+      "dueDate": "2026-05-13T20:00:00Z",
+      "createdAt": "2026-05-10T18:00:00Z",
+      "updatedAt": "2026-05-10T18:00:00Z",
+      "createdBy": "demo"
+    },
+    {
+      "title": "Appeler le veto pour Mochi (rappel vaccin)",
+      "category": "Animaux",
+      "effort": "quick",
+      "priority": true,
+      "status": "pending",
+      "dueDate": "2026-05-12T18:00:00Z",
+      "createdAt": "2026-05-11T09:00:00Z",
+      "updatedAt": "2026-05-11T09:00:00Z",
+      "createdBy": "demo"
+    },
+    {
+      "title": "Aspirer le salon",
+      "category": "Maison",
+      "effort": "normal",
+      "priority": false,
+      "status": "pending",
+      "recurrenceRule": "FREQ=WEEKLY;BYDAY=SA",
+      "dueDate": "2026-05-16T10:00:00Z",
+      "createdAt": "2026-05-10T18:00:00Z",
+      "updatedAt": "2026-05-10T18:00:00Z",
+      "createdBy": "demo"
+    },
+    {
+      "title": "Faire la revision de la voiture",
+      "category": "Voiture",
+      "effort": "long",
+      "priority": false,
+      "status": "pending",
+      "dueDate": "2026-05-25T10:00:00Z",
+      "createdAt": "2026-05-10T18:00:00Z",
+      "updatedAt": "2026-05-10T18:00:00Z",
+      "createdBy": "demo"
+    },
+    {
+      "title": "Preparer le menu de la semaine",
+      "category": "Cuisine",
+      "effort": "normal",
+      "priority": false,
+      "status": "pending",
+      "dueDate": "2026-05-17T10:00:00Z",
+      "createdAt": "2026-05-10T18:00:00Z",
+      "updatedAt": "2026-05-10T18:00:00Z",
+      "createdBy": "demo"
+    },
+    {
+      "title": "Recuperer le pain",
+      "category": "Cuisine",
+      "effort": "quick",
+      "priority": false,
+      "status": "done",
+      "completedAt": "2026-05-11T18:30:00Z",
+      "completedBy": "demo",
+      "createdAt": "2026-05-11T08:00:00Z",
+      "updatedAt": "2026-05-11T18:30:00Z",
+      "createdBy": "demo"
+    }
+  ],
+  "shoppingItems": [
+    {
+      "name": "Lait demi-ecreme",
+      "emoji": "🥛",
+      "quantity": 2,
+      "unit": "L",
+      "rayon": "Frais",
+      "status": "pending",
+      "addedBy": "demo",
+      "addedAt": "2026-05-11T14:00:00Z",
+      "fromQuickAdd": false
+    },
+    {
+      "name": "Baguette",
+      "emoji": "🥖",
+      "quantity": 1,
+      "rayon": "Boulangerie",
+      "status": "pending",
+      "addedBy": "demo",
+      "addedAt": "2026-05-11T14:00:00Z",
+      "fromQuickAdd": false
+    },
+    {
+      "name": "Pates",
+      "emoji": "🍝",
+      "quantity": 2,
+      "unit": "pack",
+      "rayon": "Épicerie",
+      "status": "pending",
+      "addedBy": "demo",
+      "addedAt": "2026-05-11T14:00:00Z",
+      "fromQuickAdd": false
+    },
+    {
+      "name": "Dentifrice",
+      "emoji": "🪥",
+      "quantity": 1,
+      "rayon": "Hygiène",
+      "notes": "Marque Signal, tube vert",
+      "status": "pending",
+      "addedBy": "demo",
+      "addedAt": "2026-05-11T14:00:00Z",
+      "fromQuickAdd": false,
+      "fromStockAuto": true
+    },
+    {
+      "name": "Croquettes Mochi",
+      "emoji": "🐱",
+      "quantity": 1,
+      "unit": "pack",
+      "rayon": "Animalerie",
+      "notes": "Royal Canin Indoor adulte",
+      "status": "pending",
+      "addedBy": "demo",
+      "addedAt": "2026-05-11T14:00:00Z",
+      "fromQuickAdd": false
+    },
+    {
+      "name": "Pommes",
+      "emoji": "🍎",
+      "quantity": 6,
+      "rayon": "Frais",
+      "status": "bought",
+      "boughtAt": "2026-05-11T18:30:00Z",
+      "boughtBy": "demo",
+      "addedBy": "demo",
+      "addedAt": "2026-05-11T14:00:00Z",
+      "fromQuickAdd": false
+    }
+  ],
+  "stocks": [
+    {
+      "name": "Dentifrice",
+      "emoji": "🪥",
+      "level": "empty",
+      "lastRenewedAt": "2026-04-01T10:00:00Z",
+      "history": [
+        {
+          "level": "empty",
+          "changedAt": "2026-05-10T20:00:00Z",
+          "changedBy": "demo"
+        },
+        {
+          "level": "low",
+          "changedAt": "2026-04-25T20:00:00Z",
+          "changedBy": "demo"
+        }
+      ],
+      "createdAt": "2026-01-15T10:00:00Z",
+      "createdBy": "demo"
+    },
+    {
+      "name": "Cafe en grains",
+      "emoji": "☕",
+      "level": "low",
+      "lastRenewedAt": "2026-04-10T10:00:00Z",
+      "history": [
+        {
+          "level": "low",
+          "changedAt": "2026-05-08T08:00:00Z",
+          "changedBy": "demo"
+        }
+      ],
+      "createdAt": "2026-01-15T10:00:00Z",
+      "createdBy": "demo"
+    },
+    {
+      "name": "Lessive linge",
+      "emoji": "🧼",
+      "level": "half",
+      "lastRenewedAt": "2026-04-20T10:00:00Z",
+      "history": [
+        {
+          "level": "half",
+          "changedAt": "2026-05-05T20:00:00Z",
+          "changedBy": "demo"
+        }
+      ],
+      "createdAt": "2026-01-15T10:00:00Z",
+      "createdBy": "demo"
+    },
+    {
+      "name": "Papier toilette",
+      "emoji": "🧻",
+      "level": "full",
+      "lastRenewedAt": "2026-05-08T10:00:00Z",
+      "history": [
+        {
+          "level": "full",
+          "changedAt": "2026-05-08T10:00:00Z",
+          "changedBy": "demo"
+        }
+      ],
+      "createdAt": "2026-01-15T10:00:00Z",
+      "createdBy": "demo"
+    }
+  ],
+  "memoryEntries": [
+    {
+      "type": "code",
+      "title": "Code WiFi maison",
+      "emoji": "📶",
+      "pinned": true,
+      "pinnedOrder": 0,
+      "structuredData": {
+        "value": "Magnolia2026!",
+        "ssid": "Cocon-Magnolia"
+      },
+      "tags": ["wifi", "maison"],
+      "searchTokens": ["code", "wifi", "magnolia"],
+      "isSensitive": true,
+      "createdAt": "2026-01-15T10:00:00Z",
+      "createdBy": "demo",
+      "updatedAt": "2026-01-15T10:00:00Z"
+    },
+    {
+      "type": "contact",
+      "title": "Veterinaire Mochi",
+      "emoji": "🐾",
+      "pinned": true,
+      "pinnedOrder": 1,
+      "structuredData": {
+        "phone": "04 78 12 34 56",
+        "name": "Dr. Martin",
+        "address": "12 rue des Lilas, Lyon"
+      },
+      "tags": ["veto", "mochi", "urgence"],
+      "searchTokens": ["veterinaire", "veto", "mochi", "martin"],
+      "isSensitive": false,
+      "createdAt": "2026-01-15T10:00:00Z",
+      "createdBy": "demo",
+      "updatedAt": "2026-01-15T10:00:00Z"
+    },
+    {
+      "type": "warranty",
+      "title": "Garantie frigo Samsung",
+      "emoji": "📄",
+      "pinned": false,
+      "structuredData": {
+        "expiresAt": "2026-06-01",
+        "model": "RF23A9771SR",
+        "purchaseDate": "2024-06-01"
+      },
+      "tags": ["garantie", "frigo", "cuisine"],
+      "searchTokens": ["garantie", "frigo", "samsung"],
+      "isSensitive": false,
+      "createdAt": "2026-01-15T10:00:00Z",
+      "createdBy": "demo",
+      "updatedAt": "2026-01-15T10:00:00Z"
+    },
+    {
+      "type": "manual",
+      "title": "Code portail",
+      "emoji": "🔐",
+      "pinned": true,
+      "pinnedOrder": 2,
+      "structuredData": {
+        "value": "1492",
+        "location": "Portail entree principale"
+      },
+      "tags": ["code", "portail"],
+      "searchTokens": ["code", "portail"],
+      "isSensitive": false,
+      "createdAt": "2026-01-15T10:00:00Z",
+      "createdBy": "demo",
+      "updatedAt": "2026-01-15T10:00:00Z"
+    },
+    {
+      "type": "note",
+      "title": "Plombier de confiance",
+      "emoji": "🔧",
+      "pinned": false,
+      "structuredData": {
+        "phone": "06 12 34 56 78",
+        "name": "M. Dupont",
+        "rate": "55€/heure"
+      },
+      "tags": ["plombier", "urgence", "depannage"],
+      "searchTokens": ["plombier", "dupont"],
+      "isSensitive": false,
+      "createdAt": "2026-01-15T10:00:00Z",
+      "createdBy": "demo",
+      "updatedAt": "2026-01-15T10:00:00Z"
+    }
+  ],
+  "checklistTemplates": [
+    {
+      "name": "Avant les vacances",
+      "emoji": "🌴",
+      "description": "Tout pour partir l'esprit tranquille",
+      "isSeeded": false,
+      "triggers": [
+        { "keyword": "vacances", "daysBefore": 5 },
+        { "keyword": "voyage", "daysBefore": 7 }
+      ],
+      "createdAt": "2026-01-15T10:00:00Z",
+      "updatedAt": "2026-01-15T10:00:00Z"
+    },
+    {
+      "name": "Reception a la maison",
+      "emoji": "🍽️",
+      "description": "Pour accueillir des amis",
+      "isSeeded": false,
+      "triggers": [
+        { "keyword": "soirée", "daysBefore": 2 },
+        { "keyword": "diner", "daysBefore": 1 }
+      ],
+      "createdAt": "2026-01-15T10:00:00Z",
+      "updatedAt": "2026-01-15T10:00:00Z"
+    }
+  ],
+  "calendarEvents": [
+    {
+      "title": "Diner avec Lea et Tom",
+      "description": "Apporter dessert",
+      "location": "Chez nous",
+      "startTime": "2026-05-12T19:30:00Z",
+      "endTime": "2026-05-12T23:00:00Z",
+      "source": "local",
+      "createdAt": "2026-05-08T10:00:00Z",
+      "createdBy": "demo"
+    },
+    {
+      "title": "Rdv kine",
+      "location": "Cabinet rue Vauban, Lyon 6",
+      "startTime": "2026-05-13T14:00:00Z",
+      "endTime": "2026-05-13T15:00:00Z",
+      "source": "local",
+      "createdAt": "2026-05-08T10:00:00Z",
+      "createdBy": "demo"
+    },
+    {
+      "title": "Vacances Bretagne",
+      "description": "Saint-Malo, gite des Cormorans",
+      "location": "Saint-Malo",
+      "startTime": "2026-05-19T00:00:00Z",
+      "endTime": "2026-05-26T00:00:00Z",
+      "source": "local",
+      "createdAt": "2026-04-01T10:00:00Z",
+      "createdBy": "demo"
+    },
+    {
+      "title": "Soiree barbecue voisins",
+      "location": "Chez les Martin",
+      "startTime": "2026-05-15T19:00:00Z",
+      "endTime": "2026-05-15T23:30:00Z",
+      "source": "local",
+      "createdAt": "2026-05-10T10:00:00Z",
+      "createdBy": "demo"
+    }
+  ]
+}
