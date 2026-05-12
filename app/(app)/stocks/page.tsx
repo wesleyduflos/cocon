@@ -213,77 +213,76 @@ export default function StocksPage() {
               const nextMs = stock.predictedNextRenewalAt?.toMillis();
               const nextStr = formatNextRenewal(nextMs);
               return (
-                <li
-                  key={stock.id}
-                  className="rounded-[14px] border border-border bg-surface px-4 py-3 flex gap-3"
-                >
-                  {/* Tube vertical cliquable : cycle les niveaux */}
-                  <button
-                    type="button"
+                <li key={stock.id}>
+                  {/* Toute la card est cliquable et cycle le niveau au tap.
+                      div + role=button au lieu de <button> pour autoriser les
+                      Link/button enfants (edit/delete) sans HTML invalide. */}
+                  <div
+                    role="button"
+                    tabIndex={0}
                     onClick={() =>
                       handleLevelChange(stock, LEVEL_CYCLE[stock.level])
                     }
-                    aria-label={`Niveau ${LEVEL_LABEL[stock.level]} — tap pour changer`}
-                    className="hover:scale-105 active:scale-95 transition-transform"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        handleLevelChange(stock, LEVEL_CYCLE[stock.level]);
+                      }
+                    }}
+                    aria-label={`${stock.name} — niveau ${LEVEL_LABEL[stock.level]}, tap pour passer au suivant`}
+                    className="w-full rounded-[14px] border border-border bg-surface px-4 py-3 flex items-center gap-4 text-left hover:bg-surface-elevated active:scale-[0.99] transition-all cursor-pointer"
                   >
                     <StockLevelTube level={stock.level} />
-                  </button>
 
-                  <div className="flex-1 flex flex-col gap-2 min-w-0">
-                    <div className="flex items-start gap-2">
-                      {stock.emoji ? (
-                        <span className="text-[18px] leading-tight">
-                          {stock.emoji}
-                        </span>
-                      ) : null}
-                      <div className="flex-1 flex flex-col min-w-0">
+                    <div className="flex-1 flex flex-col min-w-0">
+                      <div className="flex items-center gap-2">
+                        {stock.emoji ? (
+                          <span className="text-[20px] leading-tight shrink-0">
+                            {stock.emoji}
+                          </span>
+                        ) : null}
                         <span className="text-[15px] font-medium truncate">
                           {stock.name}
                         </span>
-                        <span className="text-[11px] text-muted-foreground leading-tight">
-                          <span
-                            className={`font-medium ${LEVEL_TEXT_COLOR[stock.level]}`}
-                          >
-                            {LEVEL_LABEL[stock.level]}
-                          </span>
+                      </div>
+                      <span className="text-[12px] mt-1">
+                        <span
+                          className={`font-semibold ${LEVEL_TEXT_COLOR[stock.level]}`}
+                        >
+                          {LEVEL_LABEL[stock.level]}
+                        </span>
+                        <span className="text-muted-foreground">
                           {" · renouvelé "}
                           {timeAgo(lastMs)}
                           {nextStr ? ` · prochain ${nextStr}` : ""}
                         </span>
-                      </div>
+                      </span>
+                    </div>
+
+                    {/* Actions secondaires (edit/delete) en split — ne pas
+                        déclencher le cycle au tap. */}
+                    <div
+                      className="flex flex-col gap-1 shrink-0"
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <Link
                         href={`/stocks/${stock.id}/edit`}
                         aria-label={`Modifier ${stock.name}`}
-                        className="w-7 h-7 rounded-[8px] flex items-center justify-center hover:bg-surface-elevated transition-colors text-muted-foreground shrink-0"
+                        className="w-7 h-7 rounded-[8px] flex items-center justify-center hover:bg-surface-elevated transition-colors text-muted-foreground"
                       >
                         <Pencil size={12} />
                       </Link>
                       <button
                         type="button"
-                        onClick={() => handleDelete(stock)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDelete(stock);
+                        }}
                         aria-label="Supprimer"
-                        className="w-7 h-7 rounded-[8px] flex items-center justify-center hover:bg-destructive/20 hover:text-destructive transition-colors shrink-0"
+                        className="w-7 h-7 rounded-[8px] flex items-center justify-center hover:bg-destructive/20 hover:text-destructive transition-colors"
                       >
                         <Trash2 size={12} />
                       </button>
-                    </div>
-
-                    {/* Niveau picker précis (4 segments) */}
-                    <div className="flex gap-1">
-                      {LEVELS.map((lvl) => (
-                        <button
-                          key={lvl}
-                          type="button"
-                          onClick={() => handleLevelChange(stock, lvl)}
-                          aria-label={LEVEL_LABEL[lvl]}
-                          aria-pressed={stock.level === lvl}
-                          className={`flex-1 h-1.5 rounded-full transition-all ${
-                            stock.level === lvl
-                              ? `${LEVEL_COLOR[lvl]} shadow-[0_0_8px_rgba(255,107,36,0.3)]`
-                              : "bg-border-subtle hover:bg-border"
-                          }`}
-                        />
-                      ))}
                     </div>
                   </div>
                 </li>

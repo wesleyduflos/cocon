@@ -36,8 +36,8 @@ const FILL_STYLE: Record<StockLevel, string> = {
 
 export function StockLevelTube({
   level,
-  width = 12,
-  height = 56,
+  width = 20,
+  height = 64,
   className,
 }: StockLevelTubeProps) {
   const pct = FILL_PCT[level];

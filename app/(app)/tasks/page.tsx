@@ -139,29 +139,34 @@ export default function TasksPage() {
     0;
 
   return (
-    <main className="flex flex-1 flex-col px-5 py-6">
-      <header className="flex items-center justify-between mb-5">
-        <div className="flex flex-col gap-1">
-          <p className="text-[0.6875rem] uppercase tracking-[0.12em] text-muted-foreground">
-            À faire
-          </p>
-          <h1 className="font-display text-[28px] font-semibold leading-[1.05]">
-            Tâches{" "}
-            <span className="text-muted-foreground font-normal text-[20px]">
-              · {pendingCount}
-            </span>
-          </h1>
-        </div>
-        <Link
-          href="/tasks/new"
-          aria-label="Créer une tâche"
-          className="w-10 h-10 rounded-[10px] bg-primary text-primary-foreground flex items-center justify-center shadow-[0_0_14px_rgba(255,107,36,0.45)] hover:bg-[var(--primary-hover)] transition-colors"
-        >
-          <Plus size={20} strokeWidth={2.4} />
-        </Link>
-      </header>
+    <main className="flex flex-1 flex-col">
+      {/* Header + filtres sticky pour rester visibles au scroll */}
+      <div
+        className="sticky top-0 z-20 px-5 pt-6 pb-3 bg-background/90 backdrop-blur-xl border-b border-border-subtle"
+        style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 18px)" }}
+      >
+        <header className="flex items-center justify-between mb-4">
+          <div className="flex flex-col gap-1">
+            <p className="text-[0.6875rem] uppercase tracking-[0.12em] text-muted-foreground">
+              À faire
+            </p>
+            <h1 className="font-display text-[28px] font-semibold leading-[1.05]">
+              Tâches{" "}
+              <span className="text-muted-foreground font-normal text-[20px]">
+                · {pendingCount}
+              </span>
+            </h1>
+          </div>
+          <Link
+            href="/tasks/new"
+            aria-label="Créer une tâche"
+            className="w-10 h-10 rounded-[10px] bg-primary text-primary-foreground flex items-center justify-center shadow-[0_0_14px_rgba(255,107,36,0.45)] hover:bg-[var(--primary-hover)] transition-colors"
+          >
+            <Plus size={20} strokeWidth={2.4} />
+          </Link>
+        </header>
 
-      <div className="flex gap-2 overflow-x-auto pb-1 mb-5 -mx-5 px-5 scrollbar-hide">
+        <div className="flex gap-2 overflow-x-auto -mx-5 px-5 scrollbar-hide">
         <FilterChip
           active={filter === "all"}
           onClick={() => setFilter("all")}
@@ -185,8 +190,10 @@ export default function TasksPage() {
         >
           Non assignées
         </FilterChip>
+        </div>
       </div>
 
+      <div className="flex-1 flex flex-col px-5 pt-5 pb-6">
       {loading ? (
         <p className="text-[13px] text-muted-foreground">Chargement…</p>
       ) : !hasAnyVisible ? (
@@ -244,6 +251,7 @@ export default function TasksPage() {
           />
         </div>
       ) : null}
+      </div>
     </main>
   );
 }
