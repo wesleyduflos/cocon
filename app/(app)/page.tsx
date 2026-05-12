@@ -38,6 +38,7 @@ import {
 import {
   acceptSuggestion,
   dismissSuggestion,
+  isDueThisWeek,
   isDueToday,
   isOverdue,
   launchChecklistRun,
@@ -286,6 +287,18 @@ export default function DashboardPage() {
     return sortByPriorityThenDue(filtered).slice(0, 4);
   }, [tasks]);
 
+  const weekTasks = useMemo(() => {
+    const now = new Date();
+    const filtered = tasks.filter(
+      (t) =>
+        t.status === "pending" &&
+        !isOverdue(t, now) &&
+        !isDueToday(t, now) &&
+        isDueThisWeek(t, now),
+    );
+    return sortByPriorityThenDue(filtered).slice(0, 4);
+  }, [tasks]);
+
   const shoppingPendingCount = useMemo(
     () => shoppingItems.filter((i) => i.status === "pending").length,
     [shoppingItems],
@@ -510,6 +523,34 @@ export default function DashboardPage() {
                     householdId={household.id}
                     userId={user.uid}
                     overdue={isOverdue(t, new Date())}
+                  />
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
+        {/* Tâches cette semaine (hors aujourd'hui) */}
+        {weekTasks.length > 0 && household && user ? (
+          <section className="flex flex-col gap-2.5">
+            <div className="flex items-baseline justify-between">
+              <h2 className="text-[0.6875rem] uppercase tracking-[0.12em] text-muted-foreground">
+                Cette semaine
+              </h2>
+              <Link
+                href="/tasks"
+                className="text-[12px] text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Tout voir →
+              </Link>
+            </div>
+            <ul className="flex flex-col gap-2">
+              {weekTasks.map((t) => (
+                <li key={t.id}>
+                  <TaskRow
+                    task={t}
+                    householdId={household.id}
+                    userId={user.uid}
                   />
                 </li>
               ))}

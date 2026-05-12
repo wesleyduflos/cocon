@@ -87,7 +87,7 @@ describe("computeDashboardAlerts", () => {
     expect(result).toEqual([]);
   });
 
-  it("stock empty en haut (poids le plus fort)", () => {
+  it("stocks ignorés (couverts par DashCard dédiée sprint 5 polish)", () => {
     const result = computeDashboardAlerts({
       stocks: [
         stock({ id: "a", name: "Café", level: "low" }),
@@ -98,11 +98,10 @@ describe("computeDashboardAlerts", () => {
       tasks: [],
       now,
     });
-    expect(result.map((a) => a.kind)).toEqual(["stock-empty", "stock-low"]);
-    expect(result[0].title).toContain("Lessive");
+    expect(result).toEqual([]);
   });
 
-  it("préparations non terminées listées avec progression", () => {
+  it("préparations ignorées (couvertes par DashCard dédiée)", () => {
     const result = computeDashboardAlerts({
       stocks: [],
       runs: [
@@ -113,19 +112,12 @@ describe("computeDashboardAlerts", () => {
           completedTasks: 8,
           totalTasks: 12,
         }),
-        run({
-          id: "r2",
-          templateName: "Finie",
-          completedAt: Timestamp.fromDate(new Date("2026-05-11")),
-        }),
       ],
       memoryEntries: [],
       tasks: [],
       now,
     });
-    expect(result.length).toBe(1);
-    expect(result[0].title).toContain("Vacances");
-    expect(result[0].title).toContain("8/12");
+    expect(result).toEqual([]);
   });
 
   it("garantie qui expire bientôt apparaît", () => {
@@ -245,14 +237,20 @@ describe("computeDashboardAlerts", () => {
     expect(result).toEqual([]);
   });
 
-  it("cap à 5 alertes par défaut", () => {
-    const stocks = Array.from({ length: 10 }, (_, i) =>
-      stock({ id: `s${i}`, name: `Stock${i}`, level: "empty" }),
+  it("cap à 5 alertes par défaut (sur les sources couvertes)", () => {
+    // On simule 10 garanties qui expirent → seules 5 doivent apparaître
+    const manyWarranties = Array.from({ length: 10 }, (_, i) =>
+      memory({
+        id: `w${i}`,
+        type: "warranty",
+        title: `Garantie ${i}`,
+        structuredData: { expiresAt: "2026-05-15" },
+      }),
     );
     const result = computeDashboardAlerts({
-      stocks,
+      stocks: [],
       runs: [],
-      memoryEntries: [],
+      memoryEntries: manyWarranties,
       tasks: [],
       now,
     });
@@ -260,13 +258,18 @@ describe("computeDashboardAlerts", () => {
   });
 
   it("limit custom respecté", () => {
-    const stocks = Array.from({ length: 10 }, (_, i) =>
-      stock({ id: `s${i}`, name: `Stock${i}`, level: "empty" }),
+    const manyWarranties = Array.from({ length: 10 }, (_, i) =>
+      memory({
+        id: `w${i}`,
+        type: "warranty",
+        title: `Garantie ${i}`,
+        structuredData: { expiresAt: "2026-05-15" },
+      }),
     );
     const result = computeDashboardAlerts({
-      stocks,
+      stocks: [],
       runs: [],
-      memoryEntries: [],
+      memoryEntries: manyWarranties,
       tasks: [],
       now,
       limit: 3,
@@ -274,10 +277,10 @@ describe("computeDashboardAlerts", () => {
     expect(result.length).toBe(3);
   });
 
-  it("tri global multi-source par poids", () => {
+  it("tri par poids : garantie ≤7j > tâche récurrente demain", () => {
     const result = computeDashboardAlerts({
-      stocks: [stock({ id: "s1", name: "Café", level: "low" })],
-      runs: [run({ id: "r1", templateName: "Prep" })],
+      stocks: [],
+      runs: [],
       memoryEntries: [
         memory({
           id: "m1",
@@ -295,11 +298,8 @@ describe("computeDashboardAlerts", () => {
       ],
       now,
     });
-    // Ordre attendu : warranty ≤7j (80) > stock-low (70) > prep (60) > recurring (30)
     expect(result.map((a) => a.kind)).toEqual([
       "warranty-expiring",
-      "stock-low",
-      "prep-in-progress",
       "tomorrow-recurring",
     ]);
   });

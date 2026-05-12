@@ -53,8 +53,8 @@ interface ComputeInput {
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 export function computeDashboardAlerts({
-  stocks,
-  runs,
+  stocks: _stocks,
+  runs: _runs,
   memoryEntries,
   tasks,
   now,
@@ -62,42 +62,12 @@ export function computeDashboardAlerts({
 }: ComputeInput): DashboardAlert[] {
   const alerts: DashboardAlert[] = [];
 
-  // 1) Stocks épuisés (poids fort) puis bas
-  for (const s of stocks) {
-    if (s.level === "empty") {
-      alerts.push({
-        kind: "stock-empty",
-        title: `${s.name} épuisé`,
-        emoji: s.emoji ?? "📦",
-        href: "/stocks",
-        weight: 100,
-      });
-    } else if (s.level === "low") {
-      alerts.push({
-        kind: "stock-low",
-        title: `${s.name} bas`,
-        emoji: s.emoji ?? "📦",
-        href: "/stocks",
-        weight: 70,
-      });
-    }
-  }
+  // Note sprint 5 polish : on n'ajoute plus les stocks (low/empty) ni les
+  // préparations en cours ici car ils ont leur propre DashCard sur le
+  // dashboard. La section "Alertes" reste pour ce qui n'a pas de card
+  // dédiée : garanties qui expirent + tâches récurrentes demain.
 
-  // 2) Préparations en cours
-  for (const r of runs) {
-    if (r.completedAt) continue;
-    const done = r.completedTasks ?? 0;
-    const total = r.totalTasks ?? 0;
-    alerts.push({
-      kind: "prep-in-progress",
-      title: `${r.templateName} : ${done}/${total} tâches faites`,
-      emoji: r.templateEmoji ?? "🗂️",
-      href: `/preparations`,
-      weight: 60,
-    });
-  }
-
-  // 3) Garanties qui expirent dans < 30 jours
+  // 1) Garanties qui expirent dans < 30 jours
   // Convention : on stocke la date d'expiration dans structuredData.expiresAt
   // (string ISO ou yyyy-mm-dd, voir /memory/new flow).
   for (const e of memoryEntries) {
@@ -121,7 +91,7 @@ export function computeDashboardAlerts({
     });
   }
 
-  // 4) Tâches récurrentes prévues demain (utile pour anticiper le soir)
+  // 2) Tâches récurrentes prévues demain (utile pour anticiper le soir)
   const startOfTomorrow = new Date(
     now.getFullYear(),
     now.getMonth(),

@@ -84,10 +84,18 @@ export function DashCard({
   noChevron,
 }: DashCardProps) {
   const style = TONE_STYLES[tone];
+  // Toutes les DashCard partagent le meme fond/border que le hero greeting
+  // pour une harmonie visuelle forte. Seule la couleur de l'icone change
+  // selon le tone.
   return (
     <Link
       href={href}
-      className="rounded-[14px] border border-border-subtle bg-surface px-4 py-3 flex items-center gap-3 hover:bg-surface-elevated transition-colors"
+      className="rounded-[14px] px-4 py-3 flex items-center gap-3 border transition-colors hover:brightness-105"
+      style={{
+        background:
+          "linear-gradient(135deg, rgba(255,107,36,0.10), rgba(255,200,69,0.03))",
+        borderColor: "rgba(255,107,36,0.20)",
+      }}
     >
       <div
         className="w-10 h-10 rounded-[10px] flex items-center justify-center shrink-0 border"
