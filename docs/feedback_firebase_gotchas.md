@@ -170,6 +170,28 @@ Patterns appliqués pour le journal du foyer :
 
 Sans ces gardes, un simple `updateDoc(ref, { updatedAt })` regénérerait toutes les entries déjà créées.
 
+## 21. Cloud Functions + collectionGroup queries = index composite obligatoire (sprint 4)
+
+`voiceParse` faisait une query `collectionGroup("ai-logs").where("type", "==", "voice-parse").where("createdBy", "==", uid).where("createdAt", ">=", monthStart)` pour le quota mensuel. Au premier appel en prod : `Internal error` côté callable, et dans les logs Cloud Functions : `FAILED_PRECONDITION: The query requires an index`.
+
+**Fix** : pré-déclarer l'index dans `firestore.indexes.json` avec `"queryScope": "COLLECTION_GROUP"` (et pas juste `"COLLECTION"`), puis `firebase deploy --only firestore:indexes`.
+
+```json
+{
+  "collectionGroup": "ai-logs",
+  "queryScope": "COLLECTION_GROUP",
+  "fields": [
+    { "fieldPath": "createdBy", "order": "ASCENDING" },
+    { "fieldPath": "type", "order": "ASCENDING" },
+    { "fieldPath": "createdAt", "order": "ASCENDING" }
+  ]
+}
+```
+
+**Comment l'appliquer** : pour toute nouvelle Cloud Function qui fait une query multi-`where()` (en particulier avec un range sur `createdAt`), ajouter l'index correspondant au moment où on écrit la function, pas après le deploy. Tester localement avec emulators ou faire **un appel E2E réel** avant de considérer le deploy comme "OK".
+
+Sinon le message d'erreur Firebase est trompeur : le client voit `Internal` (générique), pas le vrai message `FAILED_PRECONDITION`. Il faut systématiquement `firebase functions:log --only nom-de-la-fonction` après le premier appel d'une nouvelle function.
+
 ## 20. JournalEnabled / BalanceEnabled — opt-in vs opt-out (sprint 4)
 
 Le score d'équilibre est **off par défaut** (potentiellement culpabilisant si mal calibré). Le journal est **on par défaut** (faible risque, valeur immédiate).
