@@ -170,6 +170,31 @@ Patterns appliqués pour le journal du foyer :
 
 Sans ces gardes, un simple `updateDoc(ref, { updatedAt })` regénérerait toutes les entries déjà créées.
 
+## 24. Firebase Auth.displayName vs Firestore users/{uid}.displayName drift (sprint 5)
+
+Quand on appelle `updateDoc(userDoc(uid), { displayName })`, **seul** le doc Firestore est mis à jour. Firebase Auth garde l'ancien `displayName` (vide si jamais set au signup), ce qui crée un drift si un autre composant lit `auth.currentUser.displayName` ou `user.displayName` depuis `useAuth()`. Bug typique : le greeting du dashboard affiche `email.split('@')[0]` au lieu du nom configuré dans Settings.
+
+**Fix** : single source of truth Firestore. Créer un hook `useCurrentUserProfile()` qui `onSnapshot` le doc `users/{uid}`. Tous les composants qui ont besoin du `displayName` (greeting, header, journal personnalisé) lisent depuis ce hook, jamais depuis `auth.currentUser`.
+
+```typescript
+export function useCurrentUserProfile() {
+  const { user } = useAuth();
+  const [profile, setProfile] = useState(null);
+  useEffect(() => {
+    if (!user) return setProfile(null);
+    const unsub = onSnapshot(userDoc(user.uid), (snap) => {
+      setProfile(snap.data() ?? null);
+    });
+    return unsub;
+  }, [user]);
+  return profile;
+}
+```
+
+En complément, **dual-write best-effort** dans `updateUserDisplayName(uid, name)` : après le `updateDoc(userDoc(...))`, appeler `updateProfile(auth.currentUser, { displayName })` si `auth.currentUser?.uid === uid`. Ça garde Firebase Auth en cohérence pour les composants legacy qui n'ont pas migré.
+
+**Pattern à généraliser** : pour tout champ user dupliqué entre Auth et Firestore (avatarUrl, email...), Firestore = source de vérité via onSnapshot, Auth = sync best-effort.
+
 ## 22. PowerShell `firebase functions:secrets:set` + paste = clé tronquée (sprint 4)
 
 Coller une clé API longue (OpenAI `sk-proj-...` ~160 chars) au prompt interactif de `firebase functions:secrets:set` plante systématiquement sur Windows : PowerShell ne capture que les premiers caractères. Symptôme : la fonction reçoit une clé du genre `"vvp"`, et OpenAI répond `invalid_api_key` (status 401).
