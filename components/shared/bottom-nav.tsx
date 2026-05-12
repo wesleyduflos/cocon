@@ -34,8 +34,17 @@ export function BottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 inset-x-0 z-50 backdrop-blur-xl bg-background/80 border-t border-border"
-      style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 8px)" }}
+      className="z-[60] backdrop-blur-xl bg-background/85 border-t border-border"
+      style={{
+        // Force le fixed via style inline pour bypasser tout containing-block
+        // parasite (transform/filter/will-change sur un ancetre qui creerait
+        // un nouveau containing block et casserait position:fixed).
+        position: "fixed",
+        bottom: 0,
+        left: 0,
+        right: 0,
+        paddingBottom: "calc(env(safe-area-inset-bottom) + 8px)",
+      }}
       aria-label="Navigation principale"
     >
       <div className="max-w-md mx-auto grid grid-cols-5 px-2 pt-2">

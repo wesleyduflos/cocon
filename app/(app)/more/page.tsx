@@ -4,7 +4,6 @@ import {
   CheckSquare,
   NotebookPen,
   Settings,
-  Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -44,13 +43,6 @@ const CARDS: Card[] = [
     title: "Journal",
     subtitle: "L'histoire du cocon",
     available: true,
-  },
-  {
-    href: "/more",
-    icon: Sparkles,
-    title: "Assistant IA",
-    subtitle: "Suggestions",
-    available: false,
   },
   {
     href: "/settings",
