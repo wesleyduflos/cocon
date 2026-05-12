@@ -287,9 +287,8 @@ export default function DashboardPage() {
     [stocks, runs, memoryEntries, tasks],
   );
 
-  const householdSubtitle = household
-    ? `${household.name}${household.memberIds.length > 1 ? ` · ${household.memberIds.length} membres` : ""}`
-    : undefined;
+  // Header sans sous-titre : Wesley a demandé de retirer le nom du cocon
+  // (le nom reste affiché dans /settings/cocon).
 
   const sortedEvents = useMemo(
     () =>
@@ -301,7 +300,7 @@ export default function DashboardPage() {
 
   return (
     <main className="flex flex-1 flex-col">
-      <AppHeader subtitle={householdSubtitle} />
+      <AppHeader />
 
       <div className="w-full max-w-md mx-auto flex flex-col gap-6 px-5 pt-5 pb-7">
         {/* Hero unifié : greeting + météo dans une card gradient subtile */}
