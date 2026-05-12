@@ -319,7 +319,7 @@ export default function MarketModePage() {
 
       {/* Bande horizontale des autres rayons */}
       <div
-        className="sticky bottom-0 left-0 right-0 z-10 px-5 py-3 bg-background/90 backdrop-blur-xl border-t border-border"
+        className="sticky bottom-24 left-0 right-0 z-10 px-5 py-3 bg-background/90 backdrop-blur-xl border-t border-border"
         style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 12px)" }}
       >
         <div className="flex gap-2 overflow-x-auto -mx-5 px-5 scrollbar-hide">
