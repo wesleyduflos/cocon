@@ -17,6 +17,8 @@ import {
 import { useStocks } from "@/hooks/use-stocks";
 import { useTasks } from "@/hooks/use-tasks";
 import {
+  clearJournalEntries,
+  listJournalEntries,
   seedChecklistTemplates,
   seedQuickAddItems,
   updateHousehold,
@@ -36,6 +38,9 @@ export default function CoconSettingsPage() {
   const [reseedingQa, setReseedingQa] = useState(false);
   const [reseedingPrep, setReseedingPrep] = useState(false);
   const [togglingBalance, setTogglingBalance] = useState(false);
+  const [togglingJournal, setTogglingJournal] = useState(false);
+  const [exportingJournal, setExportingJournal] = useState(false);
+  const [clearingJournal, setClearingJournal] = useState(false);
 
   // Compteurs des modules
   const { tasks } = useTasks(household?.id);
@@ -97,6 +102,76 @@ export default function CoconSettingsPage() {
       });
     } finally {
       setTogglingBalance(false);
+    }
+  }
+
+  async function handleToggleJournal() {
+    if (!household) return;
+    setTogglingJournal(true);
+    try {
+      // journalEnabled est on par défaut → considère undefined comme true
+      const current = household.journalEnabled !== false;
+      const next = !current;
+      await updateHousehold(household.id, { journalEnabled: next });
+      showToast({
+        message: next ? "Journal activé" : "Journal désactivé",
+      });
+    } finally {
+      setTogglingJournal(false);
+    }
+  }
+
+  async function handleExportJournal() {
+    if (!household) return;
+    setExportingJournal(true);
+    try {
+      // On charge une grosse page (limite 1000 entries — au-delà, l'utilisateur
+      // a probablement besoin d'un export plus avancé).
+      const entries = await listJournalEntries(household.id, { limit: 1000 });
+      const payload = {
+        householdId: household.id,
+        householdName: household.name,
+        exportedAt: new Date().toISOString(),
+        entries: entries.map((e) => ({
+          ...e,
+          createdAt: e.createdAt.toDate().toISOString(),
+        })),
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `journal-cocon-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast({ message: `${entries.length} entrées exportées` });
+    } finally {
+      setExportingJournal(false);
+    }
+  }
+
+  async function handleClearJournal() {
+    if (!household) return;
+    if (
+      !window.confirm(
+        "Effacer définitivement toutes les entrées du journal ? Cette action est irréversible.",
+      )
+    )
+      return;
+    if (
+      !window.confirm(
+        "Confirme une dernière fois : effacer le journal du foyer ?",
+      )
+    )
+      return;
+    setClearingJournal(true);
+    try {
+      const deleted = await clearJournalEntries(household.id);
+      showToast({ message: `${deleted} entrées effacées` });
+    } finally {
+      setClearingJournal(false);
     }
   }
 
@@ -315,6 +390,63 @@ export default function CoconSettingsPage() {
               />
             </button>
           </article>
+        </section>
+
+        {/* Journal (on par défaut) */}
+        <section className="flex flex-col gap-3">
+          <h2 className="text-[0.6875rem] uppercase tracking-[0.12em] text-muted-foreground">
+            Journal du foyer
+          </h2>
+          <article className="rounded-[12px] border border-border bg-surface px-4 py-3 flex items-start gap-3">
+            <div className="flex-1 flex flex-col gap-1">
+              <span className="text-[14px] font-medium">
+                Activer le journal
+              </span>
+              <span className="text-[12px] text-muted-foreground leading-snug">
+                Garde une trace chaleureuse des moments du foyer (tâches
+                terminées, préparations, stocks renouvelés…). Désactivable
+                à tout moment.
+              </span>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={household?.journalEnabled !== false}
+              onClick={handleToggleJournal}
+              disabled={togglingJournal || !household}
+              className={`shrink-0 w-11 h-6 rounded-full relative transition-colors ${
+                household?.journalEnabled !== false
+                  ? "bg-primary"
+                  : "bg-border"
+              } disabled:opacity-50`}
+            >
+              <span
+                className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
+                  household?.journalEnabled !== false
+                    ? "translate-x-5"
+                    : "translate-x-0"
+                }`}
+              />
+            </button>
+          </article>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={handleExportJournal}
+              disabled={exportingJournal || !household}
+              className="rounded-[12px] border border-border bg-surface px-3 py-3 text-[13px] font-medium hover:bg-surface-elevated transition-colors disabled:opacity-50"
+            >
+              {exportingJournal ? "..." : "Exporter (JSON)"}
+            </button>
+            <button
+              type="button"
+              onClick={handleClearJournal}
+              disabled={clearingJournal || !household}
+              className="rounded-[12px] border border-destructive/40 bg-surface px-3 py-3 text-[13px] font-medium text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+            >
+              {clearingJournal ? "..." : "Effacer le journal"}
+            </button>
+          </div>
         </section>
 
         {/* Reseed (owner only) */}

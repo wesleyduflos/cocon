@@ -39,11 +39,11 @@ const CARDS: Card[] = [
     available: true,
   },
   {
-    href: "/more",
+    href: "/journal",
     icon: NotebookPen,
     title: "Journal",
     subtitle: "L'histoire du cocon",
-    available: false,
+    available: true,
   },
   {
     href: "/more",

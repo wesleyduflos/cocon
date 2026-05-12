@@ -54,6 +54,8 @@ export interface Household {
   invitations: Record<string, HouseholdInvitation>;
   /** Sprint 4 — score d'équilibre opt-in, off par défaut. */
   balanceEnabled?: boolean;
+  /** Sprint 4 — journal du foyer. On par défaut, désactivable. */
+  journalEnabled?: boolean;
 }
 
 export type HouseholdMemberRole = "owner" | "member";
@@ -252,6 +254,25 @@ export interface MemoryEntry {
   createdAt: Timestamp;
   createdBy: string;
   updatedAt: Timestamp;
+}
+
+// ---------- Journal (sprint 4) ----------
+
+export type JournalEntryType =
+  | "task_completed"
+  | "preparation_launched"
+  | "preparation_completed"
+  | "member_joined"
+  | "stock_renewed"
+  | "memory_entry_added";
+
+export interface JournalEntry {
+  type: JournalEntryType;
+  actor: string;
+  actorName: string;
+  /** Contenu dépendant du `type`. Voir lib/journal/journal.ts. */
+  payload: Record<string, string | number | boolean>;
+  createdAt: Timestamp;
 }
 
 // ---------- Suggestion (sprint 4) ----------

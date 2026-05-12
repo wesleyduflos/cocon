@@ -14,6 +14,8 @@ import {
   doc,
   getDoc,
   getDocs,
+  limit,
+  orderBy,
   query,
   runTransaction,
   serverTimestamp,
@@ -32,6 +34,7 @@ import {
   type Household,
   type HouseholdMember,
   type Invitation,
+  type JournalEntry,
   type MemoryEntry,
   type MemoryEntryType,
   type QuickAddItem,
@@ -82,6 +85,7 @@ export const checklistTemplateItemConverter =
   makeConverter<ChecklistTemplateItem>();
 export const checklistRunConverter = makeConverter<ChecklistRun>();
 export const suggestionConverter = makeConverter<Suggestion>();
+export const journalEntryConverter = makeConverter<JournalEntry>();
 
 /* =========================================================================
    References typées
@@ -363,6 +367,30 @@ export function suggestionDoc(
   ).withConverter(suggestionConverter);
 }
 
+export function journalEntriesCollection(
+  householdId: string,
+): CollectionReference<JournalEntry> {
+  return collection(
+    db,
+    "households",
+    householdId,
+    "journal-entries",
+  ).withConverter(journalEntryConverter);
+}
+
+export function journalEntryDoc(
+  householdId: string,
+  entryId: string,
+): DocumentReference<JournalEntry> {
+  return doc(
+    db,
+    "households",
+    householdId,
+    "journal-entries",
+    entryId,
+  ).withConverter(journalEntryConverter);
+}
+
 export async function dismissSuggestion(
   householdId: string,
   suggestionId: string,
@@ -384,6 +412,51 @@ export async function acceptSuggestion(
     actedBy: userId,
     actedAt: serverTimestamp(),
   });
+}
+
+/**
+ * Charge une page d'entries du journal (chronologique inversé).
+ * Si `before` est fourni, retourne les entries strictement plus anciennes.
+ */
+export async function listJournalEntries(
+  householdId: string,
+  options: { limit?: number; before?: Timestamp } = {},
+): Promise<WithId<JournalEntry>[]> {
+  const base = query(
+    journalEntriesCollection(householdId),
+    orderBy("createdAt", "desc"),
+  );
+  const constrained = options.before
+    ? query(base, where("createdAt", "<", options.before))
+    : base;
+  const limited = query(constrained, limit(options.limit ?? 30));
+  const snap = await getDocs(limited);
+  return snap.docs.map((d) => ({ ...d.data(), id: d.id }));
+}
+
+/**
+ * Efface toutes les entries du journal d'un cocon.
+ * Utilisé par "Effacer le journal" dans les paramètres (double opt-in côté UI).
+ */
+export async function clearJournalEntries(
+  householdId: string,
+): Promise<number> {
+  let total = 0;
+  // eslint-disable-next-line no-constant-condition
+  while (true) {
+    const snap = await getDocs(
+      query(
+        journalEntriesCollection(householdId),
+        orderBy("createdAt", "desc"),
+        limit(400),
+      ),
+    );
+    if (snap.empty) break;
+    await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
+    total += snap.size;
+    if (snap.size < 400) break;
+  }
+  return total;
 }
 
 /* =========================================================================
@@ -443,7 +516,9 @@ export async function updateUserPreferences(
  */
 export async function updateHousehold(
   householdId: string,
-  patch: Partial<Pick<Household, "name" | "emoji" | "balanceEnabled">>,
+  patch: Partial<
+    Pick<Household, "name" | "emoji" | "balanceEnabled" | "journalEnabled">
+  >,
 ): Promise<void> {
   await updateDoc(householdDoc(householdId), patch);
 }
