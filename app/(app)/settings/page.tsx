@@ -1,158 +1,213 @@
 "use client";
 
+import { signOut } from "firebase/auth";
 import {
   Bell,
   Brush,
-  Database,
+  ChevronRight,
+  Download,
   House,
   LogOut,
+  NotebookPen,
   Plug,
-  Sparkles,
+  Scale,
+  UserCircle,
   UserRound,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
 
-import { useAuth } from "@/hooks/use-auth";
-import { useCurrentHousehold } from "@/hooks/use-household";
-import { useMembers } from "@/hooks/use-members";
+import { AppHeader } from "@/components/shared/app-header";
+import { auth } from "@/lib/firebase/client";
 
-interface SettingsCard {
+interface SettingsRow {
   href: string;
   icon: typeof House;
   title: string;
-  available: boolean;
-  variant?: "default" | "warning";
+  subtitle: string;
+  /** Couleur de l'icône (fond du cercle). */
+  iconBg?: string;
+  iconColor?: string;
 }
 
-const CARDS: SettingsCard[] = [
-  { href: "/settings/cocon", icon: House, title: "Mon cocon", available: true },
+interface SettingsGroup {
+  label: string;
+  rows: SettingsRow[];
+}
+
+const GROUPS: SettingsGroup[] = [
   {
-    href: "/settings/profile",
-    icon: UserRound,
-    title: "Mon profil",
-    available: true,
+    label: "Compte",
+    rows: [
+      {
+        href: "/settings/profile",
+        icon: UserRound,
+        title: "Mon profil",
+        subtitle: "Nom, avatar, passkeys",
+        iconBg: "bg-[rgba(255,107,36,0.15)]",
+        iconColor: "text-primary",
+      },
+      {
+        href: "/settings/cocon",
+        icon: House,
+        title: "Mon cocon",
+        subtitle: "Nom, emoji, membres, équilibre, journal",
+        iconBg: "bg-[rgba(255,200,69,0.15)]",
+        iconColor: "text-[#FFC845]",
+      },
+    ],
   },
   {
-    href: "/settings/appearance",
-    icon: Brush,
-    title: "Apparence",
-    available: true,
+    label: "App",
+    rows: [
+      {
+        href: "/settings/appearance",
+        icon: Brush,
+        title: "Apparence",
+        subtitle: "Thème, polices, accents",
+        iconBg: "bg-[rgba(180,140,255,0.15)]",
+        iconColor: "text-[#B48CFF]",
+      },
+      {
+        href: "/settings/notifications",
+        icon: Bell,
+        title: "Notifications",
+        subtitle: "Push, heures de silence, rappels",
+        iconBg: "bg-[rgba(76,175,80,0.15)]",
+        iconColor: "text-[#4CAF50]",
+      },
+      {
+        href: "/settings/connectors",
+        icon: Plug,
+        title: "Connecteurs",
+        subtitle: "Google Calendar, intégrations tierces",
+        iconBg: "bg-[rgba(100,160,255,0.15)]",
+        iconColor: "text-[#64A0FF]",
+      },
+    ],
   },
   {
-    href: "/settings/notifications",
-    icon: Bell,
-    title: "Notifications",
-    available: true,
+    label: "Confidentialité",
+    rows: [
+      {
+        href: "/balance",
+        icon: Scale,
+        title: "Score d'équilibre",
+        subtitle: "Activer ou désactiver dans Mon cocon",
+        iconBg: "bg-[rgba(255,200,69,0.15)]",
+        iconColor: "text-[#FFC845]",
+      },
+      {
+        href: "/journal",
+        icon: NotebookPen,
+        title: "Journal du foyer",
+        subtitle: "Consulter, exporter, effacer",
+        iconBg: "bg-[rgba(255,107,36,0.15)]",
+        iconColor: "text-primary",
+      },
+    ],
   },
   {
-    href: "/settings/connectors",
-    icon: Plug,
-    title: "Connecteurs",
-    available: true,
-  },
-  {
-    href: "/settings",
-    icon: Sparkles,
-    title: "Assistant IA",
-    available: false,
-  },
-  {
-    href: "/settings",
-    icon: Database,
-    title: "Données",
-    available: false,
-  },
-  {
-    href: "/settings/account",
-    icon: LogOut,
-    title: "Compte",
-    available: true,
-    variant: "warning",
+    label: "Données",
+    rows: [
+      {
+        href: "/settings/export",
+        icon: Download,
+        title: "Exporter mes données",
+        subtitle: "Télécharger toutes les données du cocon (RGPD)",
+        iconBg: "bg-[rgba(100,160,255,0.15)]",
+        iconColor: "text-[#64A0FF]",
+      },
+      {
+        href: "/settings/account",
+        icon: UserCircle,
+        title: "Compte",
+        subtitle: "Email, suppression de compte",
+        iconBg: "bg-[rgba(229,55,77,0.15)]",
+        iconColor: "text-destructive",
+      },
+    ],
   },
 ];
 
 export default function SettingsPage() {
-  const { user } = useAuth();
-  const { household } = useCurrentHousehold();
-  const { members } = useMembers(household?.memberIds);
+  const router = useRouter();
+  const [signingOut, setSigningOut] = useState(false);
 
-  const myDisplayName =
-    members.find((m) => m.uid === user?.uid)?.displayName ??
-    user?.email?.split("@")[0] ??
-    "Membre";
-  const otherName = members.find((m) => m.uid !== user?.uid)?.displayName;
+  async function handleSignOut() {
+    if (!window.confirm("Te déconnecter du cocon ?")) return;
+    setSigningOut(true);
+    try {
+      await signOut(auth);
+      router.replace("/login");
+    } finally {
+      setSigningOut(false);
+    }
+  }
 
   return (
-    <main className="flex flex-1 flex-col px-5 py-7">
-      <div className="w-full max-w-md mx-auto flex flex-col gap-6">
-        <header className="flex flex-col gap-1.5">
-          <p className="text-[0.6875rem] uppercase tracking-[0.12em] text-muted-foreground">
-            Paramètres
-          </p>
-          <h1 className="font-display text-[28px] font-semibold leading-[1.05]">
-            Réglages du cocon
-          </h1>
-        </header>
+    <main className="flex flex-1 flex-col">
+      <AppHeader subtitle="Paramètres" />
 
-        {/* Hero profil */}
-        <article className="rounded-[16px] bg-gradient-to-br from-[rgba(255,107,36,0.30)] to-[rgba(255,200,69,0.14)] border border-[rgba(255,107,36,0.40)] px-5 py-5 flex items-center gap-4">
-          <div className="w-14 h-14 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-display font-semibold text-[22px] shadow-[0_0_18px_rgba(255,107,36,0.4)]">
-            {myDisplayName.charAt(0).toUpperCase()}
-          </div>
-          <div className="flex-1 flex flex-col">
-            <span className="font-display text-[18px] font-semibold">
-              {myDisplayName}
-            </span>
-            <span className="text-[12px] text-muted-foreground">
-              {household
-                ? `Membre du ${household.name}${otherName ? ` · avec ${otherName}` : ""}`
-                : "Aucun cocon"}
-            </span>
-          </div>
-        </article>
+      <div className="w-full max-w-md mx-auto flex flex-col gap-6 px-5 py-7">
+        {GROUPS.map((group) => (
+          <section key={group.label} className="flex flex-col gap-2">
+            <h2 className="text-[0.6875rem] uppercase tracking-[0.12em] text-muted-foreground px-1">
+              {group.label}
+            </h2>
+            <div className="rounded-[14px] bg-surface border border-border overflow-hidden">
+              {group.rows.map((row, idx) => {
+                const Icon = row.icon;
+                const isLast = idx === group.rows.length - 1;
+                return (
+                  <Link
+                    key={row.href}
+                    href={row.href}
+                    className={`flex items-center gap-3 px-4 py-3 hover:bg-surface-elevated transition-colors ${
+                      isLast ? "" : "border-b border-border-subtle"
+                    }`}
+                  >
+                    <div
+                      className={`w-[30px] h-[30px] rounded-[8px] flex items-center justify-center shrink-0 ${
+                        row.iconBg ?? "bg-surface-elevated"
+                      }`}
+                    >
+                      <Icon
+                        size={16}
+                        strokeWidth={2.2}
+                        className={row.iconColor ?? "text-foreground"}
+                      />
+                    </div>
+                    <div className="flex-1 flex flex-col min-w-0">
+                      <span className="text-[14px] font-medium leading-tight">
+                        {row.title}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground leading-tight mt-0.5 truncate">
+                        {row.subtitle}
+                      </span>
+                    </div>
+                    <ChevronRight
+                      size={16}
+                      className="text-foreground-faint shrink-0"
+                    />
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
+        ))}
 
-        {/* Grille des cards */}
-        <div className="grid grid-cols-2 gap-3">
-          {CARDS.map((card) => {
-            const Icon = card.icon;
-            const isWarning = card.variant === "warning";
-            const content = (
-              <article
-                className={`rounded-[14px] border bg-surface px-4 py-4 flex flex-col gap-2 h-full transition-colors ${
-                  card.available
-                    ? isWarning
-                      ? "border-[rgba(229,55,77,0.4)] hover:bg-[rgba(229,55,77,0.08)]"
-                      : "border-border hover:bg-surface-elevated"
-                    : "border-border-subtle opacity-60"
-                }`}
-              >
-                <Icon
-                  size={20}
-                  className={isWarning ? "text-destructive" : "text-primary"}
-                />
-                <p
-                  className={`text-[14px] font-semibold leading-tight ${
-                    isWarning ? "text-destructive" : "text-foreground"
-                  }`}
-                >
-                  {card.title}
-                </p>
-                {!card.available ? (
-                  <span className="text-[10px] uppercase tracking-[0.1em] text-foreground-faint">
-                    Bientôt
-                  </span>
-                ) : null}
-              </article>
-            );
-            return card.available ? (
-              <Link key={card.title} href={card.href}>
-                {content}
-              </Link>
-            ) : (
-              <div key={card.title}>{content}</div>
-            );
-          })}
-        </div>
+        {/* Bouton Déconnexion */}
+        <button
+          type="button"
+          onClick={handleSignOut}
+          disabled={signingOut}
+          className="rounded-[14px] bg-surface border border-border w-full flex items-center justify-center gap-2 py-3.5 text-[14px] font-medium text-foreground hover:bg-surface-elevated transition-colors disabled:opacity-50"
+        >
+          <LogOut size={16} className="text-muted-foreground" />
+          {signingOut ? "Déconnexion…" : "Se déconnecter"}
+        </button>
       </div>
     </main>
   );
