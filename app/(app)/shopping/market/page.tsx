@@ -7,7 +7,10 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useCurrentHousehold } from "@/hooks/use-household";
 import { useShoppingItems } from "@/hooks/use-shopping";
-import { checkShoppingItem } from "@/lib/firebase/firestore";
+import {
+  checkShoppingItem,
+  uncheckShoppingItem,
+} from "@/lib/firebase/firestore";
 import type { ShoppingItem, ShoppingRayon, WithId } from "@/types/cocon";
 
 const RAYON_ORDER: ShoppingRayon[] = [
@@ -120,10 +123,16 @@ export default function MarketModePage() {
     }
   }, [pendingItems.length, totalItems, celebrated]);
 
-  async function handleCheck(itemId: string) {
+  async function handleToggle(itemId: string, isDone: boolean) {
     if (!household || !user) return;
     vibrate();
-    await checkShoppingItem(household.id, itemId, user.uid);
+    if (isDone) {
+      // Décocher = correction d'erreur de saisie, on garde le stock à 'full'
+      // (cf bug A.4 sprint 5 : ne pas annuler le renouvellement de stock).
+      await uncheckShoppingItem(household.id, itemId);
+    } else {
+      await checkShoppingItem(household.id, itemId, user.uid);
+    }
   }
 
   function handleFinish() {
@@ -251,12 +260,12 @@ export default function MarketModePage() {
                   <li key={item.id}>
                     <button
                       type="button"
-                      onClick={() => !isDone && handleCheck(item.id)}
-                      disabled={isDone}
-                      className={`w-full rounded-[14px] border px-4 py-4 flex items-center gap-3 text-left transition-all ${
+                      onClick={() => handleToggle(item.id, isDone)}
+                      aria-pressed={isDone}
+                      className={`w-full rounded-[14px] border px-4 py-4 flex items-center gap-3 text-left transition-all active:scale-[0.98] ${
                         isDone
-                          ? "border-secondary/30 bg-secondary/5 opacity-70"
-                          : "border-border bg-surface hover:bg-surface-elevated active:scale-[0.98]"
+                          ? "border-secondary/30 bg-secondary/5 opacity-70 hover:opacity-90"
+                          : "border-border bg-surface hover:bg-surface-elevated"
                       }`}
                     >
                       <span
