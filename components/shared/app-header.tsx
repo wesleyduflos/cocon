@@ -37,7 +37,7 @@ export function AppHeader({
     >
       {/* Logo transparent, sans fond ni bordure, totalement fondu dans la page */}
       <Image
-        src="/icons/logo-trans.png"
+        src="/icons/trans.png"
         alt="Cocon"
         width={44}
         height={44}
