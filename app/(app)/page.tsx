@@ -144,14 +144,11 @@ function HeroWeatherInline() {
   if (!snapshot) return null;
 
   return (
-    <div className="text-right shrink-0">
-      <div className="text-[28px] leading-none">{snapshot.emoji}</div>
-      <div className="text-[14px] font-semibold mt-1">
+    <div className="flex items-center gap-1.5 shrink-0">
+      <span className="text-[26px] leading-none">{snapshot.emoji}</span>
+      <span className="font-display text-[18px] font-semibold leading-none">
         {Math.round(snapshot.temperature)}°
-      </div>
-      <div className="text-[10px] text-muted-foreground truncate max-w-[80px]">
-        {snapshot.condition}
-      </div>
+      </span>
     </div>
   );
 }
@@ -304,10 +301,7 @@ export default function DashboardPage() {
 
   return (
     <main className="flex flex-1 flex-col">
-      <AppHeader
-        subtitle={householdSubtitle}
-        logoEmoji={household?.emoji ?? "🔥"}
-      />
+      <AppHeader subtitle={householdSubtitle} />
 
       <div className="w-full max-w-md mx-auto flex flex-col gap-6 px-5 pt-5 pb-7">
         {/* Hero unifié : greeting + météo dans une card gradient subtile */}

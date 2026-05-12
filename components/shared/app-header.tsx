@@ -1,28 +1,23 @@
 "use client";
 
+import Image from "next/image";
 import type { ReactNode } from "react";
 
 /* =========================================================================
    <AppHeader> — sprint 5 bloc C, variante 1A
 
    Header horizontal compact 64px, identite Cocon :
-   - Logo carre 44px arrondi, gradient orange -> safran, bordure
-     primary subtile, drop-shadow.
-   - Wordmark "Cocon" Funnel Display 700 24px, gradient orange -> safran.
-   - Sous-titre Funnel Sans 500 12px muted (nom du foyer + count
+   - Logo image (public/icons/logo-mark.png) 44px sans fond/bordure
+     pour se fondre dans la page.
+   - Wordmark "Cocon" Funnel Display 700 22px, gradient orange -> safran.
+   - Sous-titre Funnel Sans 500 11px muted (nom du foyer + count
      membres, ou label de page sur les sous-pages).
-   - Slot `actions` a droite (boutons recherche / ajout / etc).
-
-   Utilise sur le dashboard. Sur les sous-pages, on prefere souvent
-   un top bar plus discret (ArrowLeft + titre). Ce header reste
-   un peu intrusif visuellement pour empiler avec une nav contextuelle.
+   - Slot `actions` a droite optionnel.
    ========================================================================= */
 
 interface AppHeaderProps {
   /** Sous-titre : nom du foyer + count membres, ou label de section. */
   subtitle?: string;
-  /** Override de l'emoji du logo (defaut "🔥"). */
-  logoEmoji?: string;
   /** Slot de boutons d'action à droite. */
   actions?: ReactNode;
   /** Si fourni, le header est sticky avec ce z-index. */
@@ -31,7 +26,6 @@ interface AppHeaderProps {
 
 export function AppHeader({
   subtitle,
-  logoEmoji = "🔥",
   actions,
   sticky = true,
 }: AppHeaderProps) {
@@ -41,21 +35,18 @@ export function AppHeader({
         sticky ? "sticky top-0 z-10" : ""
       }`}
     >
-      {/* Logo carré 44px */}
-      <div
-        className="shrink-0 w-11 h-11 rounded-[12px] flex items-center justify-center border text-[22px]"
+      {/* Logo réel (image PNG) sans cadre, fondu dans la page */}
+      <Image
+        src="/icons/logo-mark.png"
+        alt="Cocon"
+        width={44}
+        height={44}
+        priority
+        className="shrink-0"
         style={{
-          background:
-            "linear-gradient(135deg, rgba(255,107,36,0.20), rgba(255,200,69,0.06))",
-          borderColor: "rgba(255,107,36,0.32)",
-          boxShadow: "0 0 18px rgba(255,107,36,0.18)",
+          filter: "drop-shadow(0 0 8px rgba(255,107,36,0.25))",
         }}
-        aria-hidden
-      >
-        <span style={{ filter: "drop-shadow(0 0 4px rgba(255,107,36,0.4))" }}>
-          {logoEmoji}
-        </span>
-      </div>
+      />
 
       {/* Wordmark + subtitle */}
       <div className="flex-1 flex flex-col justify-center min-w-0">
