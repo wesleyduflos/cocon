@@ -93,6 +93,7 @@ function whenChoiceFromDueDate(dueDate?: Timestamp): {
 interface MemberOption {
   uid: string;
   displayName: string;
+  avatarEmoji?: string;
 }
 
 function Pill({
@@ -176,6 +177,7 @@ export default function EditTaskPage() {
           uid,
           displayName:
             data?.displayName ?? data?.email?.split("@")[0] ?? "Membre",
+          avatarEmoji: data?.avatarEmoji,
         };
       }),
     )
@@ -320,18 +322,25 @@ export default function EditTaskPage() {
             Pour qui
           </span>
           <div className="flex flex-wrap gap-2">
-            {members.map((m) => (
-              <Pill
-                key={m.uid}
-                active={assigneeId === m.uid}
-                onClick={() =>
-                  setAssigneeId(assigneeId === m.uid ? null : m.uid)
-                }
-                disabled={submitting}
-              >
-                {m.uid === user?.uid ? "Moi" : m.displayName}
-              </Pill>
-            ))}
+            {members.map((m) => {
+              const label = m.uid === user?.uid ? "Moi" : m.displayName;
+              const emoji = m.avatarEmoji;
+              return (
+                <Pill
+                  key={m.uid}
+                  active={assigneeId === m.uid}
+                  onClick={() =>
+                    setAssigneeId(assigneeId === m.uid ? null : m.uid)
+                  }
+                  disabled={submitting}
+                >
+                  {emoji ? (
+                    <span className="mr-1.5">{emoji}</span>
+                  ) : null}
+                  {label}
+                </Pill>
+              );
+            })}
             <Pill
               active={assigneeId === null}
               onClick={() => setAssigneeId(null)}

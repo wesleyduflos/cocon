@@ -510,6 +510,20 @@ export async function updateUserDisplayName(
 }
 
 /**
+ * Met à jour l'emoji avatar du user (sprint 5 polish).
+ * Passe `""` ou `undefined` pour le retirer (fallback initiale ensuite).
+ */
+export async function updateUserAvatarEmoji(
+  uid: string,
+  emoji: string | undefined,
+): Promise<void> {
+  const value = emoji?.trim();
+  await updateDoc(userDoc(uid), {
+    avatarEmoji: value && value.length > 0 ? value : deleteField(),
+  });
+}
+
+/**
  * Met à jour partiellement les préférences d'un user (theme, quiet hours,
  * etc.). Le doc est lu d'abord pour merger avec les préférences existantes.
  */

@@ -10,15 +10,9 @@ import { useAuth } from "@/hooks/use-auth";
 import { HouseholdProvider, useCurrentHousehold } from "@/hooks/use-household";
 
 // Routes qui s'affichent en plein écran (sans la bottom nav).
-// Cf. screens-spec.md §2.3 : création de tâche, mode supermarché, login.
-const FULLSCREEN_ROUTES = [
-  "/tasks/new",
-  "/calendar/new",
-  "/shopping/new",
-  "/shopping/market",
-  "/memory/new",
-  "/invite",
-];
+// Sprint 5 polish : Wesley veut toujours voir le footer. Seul le mode
+// supermarché reste fullscreen car il a sa propre barre rayons sticky.
+const FULLSCREEN_ROUTES = ["/shopping/market"];
 
 function isFullscreen(pathname: string): boolean {
   return FULLSCREEN_ROUTES.some(

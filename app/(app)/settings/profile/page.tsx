@@ -14,7 +14,11 @@ import {
   type PasskeyEntry,
   registerPasskey,
 } from "@/lib/auth/passkey";
-import { updateUserDisplayName, userDoc } from "@/lib/firebase/firestore";
+import {
+  updateUserAvatarEmoji,
+  updateUserDisplayName,
+  userDoc,
+} from "@/lib/firebase/firestore";
 
 function formatDate(ms: number): string {
   if (!ms) return "—";
@@ -31,6 +35,7 @@ export default function ProfileSettingsPage() {
   const supportsWebAuthn = isWebAuthnSupported();
 
   const [displayName, setDisplayName] = useState("");
+  const [avatarEmoji, setAvatarEmoji] = useState<string>("");
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -44,7 +49,9 @@ export default function ProfileSettingsPage() {
     getDoc(userDoc(user.uid))
       .then((snap) => {
         if (cancelled) return;
-        setDisplayName(snap.data()?.displayName ?? "");
+        const data = snap.data();
+        setDisplayName(data?.displayName ?? "");
+        setAvatarEmoji(data?.avatarEmoji ?? "");
         setLoading(false);
       })
       .catch(() => {
@@ -81,6 +88,7 @@ export default function ProfileSettingsPage() {
     setSubmitting(true);
     try {
       await updateUserDisplayName(user.uid, displayName.trim());
+      await updateUserAvatarEmoji(user.uid, avatarEmoji || undefined);
       showToast({ message: "Profil mis à jour" });
     } finally {
       setSubmitting(false);
@@ -167,6 +175,54 @@ export default function ProfileSettingsPage() {
                 disabled={submitting}
                 className="rounded-[12px] border border-border bg-surface px-4 py-3 text-[15px] focus:outline-none focus:border-primary focus:ring-2 focus:ring-[rgba(255,107,36,0.18)] disabled:opacity-50"
               />
+            </div>
+
+            <div className="flex flex-col gap-2.5">
+              <span className="text-[0.6875rem] uppercase tracking-[0.12em] text-muted-foreground">
+                Mon emoji (avatar)
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  "🦊",
+                  "🐻",
+                  "🌿",
+                  "🐱",
+                  "🐶",
+                  "🦔",
+                  "🐰",
+                  "🦝",
+                  "🌸",
+                  "🍂",
+                  "☕",
+                  "🔥",
+                  "✨",
+                  "🌙",
+                  "🌞",
+                  "🌊",
+                ].map((choice) => (
+                  <button
+                    key={choice}
+                    type="button"
+                    onClick={() =>
+                      setAvatarEmoji(avatarEmoji === choice ? "" : choice)
+                    }
+                    disabled={submitting}
+                    aria-pressed={avatarEmoji === choice}
+                    className={`w-11 h-11 rounded-full text-[20px] flex items-center justify-center transition-all ${
+                      avatarEmoji === choice
+                        ? "bg-primary text-primary-foreground shadow-[0_0_14px_rgba(255,107,36,0.45)] scale-110"
+                        : "bg-surface border border-border hover:bg-surface-elevated"
+                    } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  >
+                    {choice}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[11px] text-foreground-faint">
+                Utilisé pour t&apos;identifier dans le foyer (assignation de
+                tâches, score d&apos;équilibre…). Vide = on affiche la
+                première lettre de ton prénom.
+              </p>
             </div>
             <div className="flex flex-col gap-2">
               <span className="text-[0.6875rem] uppercase tracking-[0.12em] text-muted-foreground">

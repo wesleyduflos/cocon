@@ -37,7 +37,7 @@ export function AppHeader({
 }: AppHeaderProps) {
   return (
     <header
-      className={`flex items-center gap-3 px-5 h-16 border-b border-border-subtle bg-background/85 backdrop-blur-xl ${
+      className={`flex items-center gap-3 px-5 h-16 bg-background ${
         sticky ? "sticky top-0 z-10" : ""
       }`}
     >

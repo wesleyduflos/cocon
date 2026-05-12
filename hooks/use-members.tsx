@@ -9,6 +9,8 @@ export interface MemberProfile {
   uid: string;
   displayName: string;
   email: string;
+  /** Emoji choisi par le membre (sprint 5 polish). Fallback : initiale. */
+  avatarEmoji?: string;
 }
 
 /**
@@ -49,6 +51,7 @@ export function useMembers(memberIds: string[] | undefined): {
             displayName:
               data?.displayName ?? data?.email?.split("@")[0] ?? "Membre",
             email: data?.email ?? "",
+            avatarEmoji: data?.avatarEmoji,
           };
         } catch {
           return { uid, displayName: "Membre", email: "" };

@@ -4,6 +4,7 @@ import { ArrowLeft, RotateCcw } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState, type FormEvent } from "react";
 
+import { MemberAvatar } from "@/components/shared/member-avatar";
 import { useToast } from "@/components/shared/toast-provider";
 import { useAuth } from "@/hooks/use-auth";
 import { useChecklistTemplates } from "@/hooks/use-checklists";
@@ -290,15 +291,11 @@ export default function CoconSettingsPage() {
                   key={m.uid}
                   className="rounded-[12px] border border-border bg-surface px-4 py-3 flex items-center gap-3"
                 >
-                  <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center font-display font-semibold text-[16px] ${
-                      isMe
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-secondary text-secondary-foreground"
-                    }`}
-                  >
-                    {m.displayName.charAt(0).toUpperCase()}
-                  </div>
+                  <MemberAvatar
+                    member={m}
+                    size={40}
+                    variant={isMe ? "primary" : "secondary"}
+                  />
                   <div className="flex-1 flex flex-col">
                     <span className="text-[14px] font-medium">
                       {isMe ? `${m.displayName} (toi)` : m.displayName}

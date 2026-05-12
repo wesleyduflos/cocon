@@ -40,6 +40,10 @@ export interface User {
   email: string;
   displayName: string;
   avatarUrl?: string;
+  /** Sprint 5 polish — emoji choisi par l'utilisateur pour représenter
+   *  son avatar dans le cocon (assignation de tâches, score d'équilibre,
+   *  liste des membres). Fallback : initiale du displayName. */
+  avatarEmoji?: string;
   createdAt: Timestamp;
   preferences: UserPreferences;
 }

@@ -1,10 +1,11 @@
 "use client";
 
-import { AlertTriangle, Mic, Search, Sparkles } from "lucide-react";
+import { AlertTriangle, Mic, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { AppHeader } from "@/components/shared/app-header";
+import { MemberAvatar } from "@/components/shared/member-avatar";
 import { TaskRow } from "@/components/tasks/task-row";
 import { useToast } from "@/components/shared/toast-provider";
 import { VoiceCaptureModal } from "@/components/shared/voice-capture-modal";
@@ -12,7 +13,7 @@ import { WeatherWidget } from "@/components/shared/weather-widget";
 import { useAuth } from "@/hooks/use-auth";
 import { useActiveChecklistRuns } from "@/hooks/use-checklists";
 import { useCurrentHousehold } from "@/hooks/use-household";
-import { useMembers, type MemberProfile } from "@/hooks/use-members";
+import { useMembers } from "@/hooks/use-members";
 import { useMemoryEntries } from "@/hooks/use-memory";
 import { useStocks } from "@/hooks/use-stocks";
 import { usePendingSuggestions } from "@/hooks/use-suggestions";
@@ -27,9 +28,9 @@ import {
   dismissSuggestion,
   isDueToday,
   isOverdue,
-  isRecentlyCompleted,
   launchChecklistRun,
 } from "@/lib/firebase/firestore";
+// (isRecentlyCompleted retiré — section "Activité récente" supprimée du dashboard)
 import type { Suggestion, Task, WithId } from "@/types/cocon";
 
 function getSummary(
@@ -54,32 +55,6 @@ function getSummary(
     return `${pending.length} en cours, rien d'urgent.`;
   }
   return "Rien à faire aujourd'hui — profite.";
-}
-
-function MemberAvatar({
-  member,
-  isCurrentUser,
-}: {
-  member: MemberProfile;
-  isCurrentUser: boolean;
-}) {
-  const initial = member.displayName.charAt(0).toUpperCase() || "?";
-  return (
-    <div className="flex flex-col items-center gap-1.5">
-      <div
-        className={`w-14 h-14 rounded-full flex items-center justify-center font-display font-semibold text-[20px] ${
-          isCurrentUser
-            ? "bg-primary text-primary-foreground shadow-[0_0_18px_rgba(255,107,36,0.4)]"
-            : "bg-secondary text-secondary-foreground"
-        }`}
-      >
-        {initial}
-      </div>
-      <span className="text-[12px] text-muted-foreground max-w-[80px] truncate">
-        {isCurrentUser ? "Toi" : member.displayName}
-      </span>
-    </div>
-  );
 }
 
 export default function DashboardPage() {
@@ -193,37 +168,16 @@ export default function DashboardPage() {
     [stocks, runs, memoryEntries, tasks],
   );
 
-  const recentDone = useMemo(() => {
-    const now = new Date();
-    return tasks
-      .filter((t) => isRecentlyCompleted(t, now))
-      .sort((a, b) => {
-        const aMs = a.completedAt?.toMillis() ?? 0;
-        const bMs = b.completedAt?.toMillis() ?? 0;
-        return bMs - aMs;
-      })
-      .slice(0, 5);
-  }, [tasks]);
-
   const householdSubtitle = household
     ? `${household.emoji ? `${household.emoji} ` : ""}${household.name} · ${household.memberIds.length} membre${household.memberIds.length > 1 ? "s" : ""}`
     : undefined;
 
   return (
     <main className="flex flex-1 flex-col">
-      {/* Sprint 5 bloc C : AppHeader (logo + wordmark + nom foyer) */}
+      {/* AppHeader sans barre de recherche, fondu dans le fond */}
       <AppHeader
         subtitle={householdSubtitle}
         logoEmoji={household?.emoji ?? "🔥"}
-        actions={
-          <Link
-            href="/memory"
-            aria-label="Recherche"
-            className="w-9 h-9 rounded-[10px] bg-surface flex items-center justify-center hover:bg-surface-elevated transition-colors"
-          >
-            <Search size={16} className="text-muted-foreground" />
-          </Link>
-        }
       />
 
       <div className="w-full max-w-md mx-auto flex flex-col gap-7 px-5 pt-7 pb-7">
@@ -368,7 +322,6 @@ export default function DashboardPage() {
                   1,
                 );
                 const scale = 0.6 + (stats.weight / maxW) * 0.5; // 0.6 → 1.1
-                const initial = m.displayName.charAt(0).toUpperCase() || "?";
                 const isMe = m.uid === user?.uid;
                 return (
                   <div
@@ -376,15 +329,11 @@ export default function DashboardPage() {
                     className="flex flex-col items-center gap-1"
                     style={{ transform: `scale(${scale})` }}
                   >
-                    <div
-                      className={`w-12 h-12 rounded-full flex items-center justify-center font-display font-semibold text-[16px] ${
-                        isMe
-                          ? "bg-primary text-primary-foreground"
-                          : "bg-secondary text-secondary-foreground"
-                      }`}
-                    >
-                      {initial}
-                    </div>
+                    <MemberAvatar
+                      member={m}
+                      size={48}
+                      variant={isMe ? "primary" : "secondary"}
+                    />
                     <span className="text-[10px] text-muted-foreground">
                       {stats.count}
                     </span>
@@ -432,61 +381,6 @@ export default function DashboardPage() {
                 </li>
               ))}
             </ul>
-          </section>
-        ) : null}
-
-        {/* Activité récente */}
-        {recentDone.length > 0 ? (
-          <section className="flex flex-col gap-2.5">
-            <h2 className="text-[0.6875rem] uppercase tracking-[0.12em] text-muted-foreground">
-              Activité récente
-            </h2>
-            <ul className="flex flex-col gap-1.5">
-              {recentDone.map((t) => (
-                <li
-                  key={t.id}
-                  className="flex items-center gap-2.5 text-[13px]"
-                >
-                  <span className="text-secondary">✓</span>
-                  <span className="text-muted-foreground line-through truncate flex-1">
-                    {t.title}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
-
-        {/* Membres du cocon */}
-        {members.length > 0 ? (
-          <section className="flex flex-col gap-3">
-            <h2 className="text-[0.6875rem] uppercase tracking-[0.12em] text-muted-foreground">
-              {household?.emoji ? `${household.emoji} ` : ""}
-              {household?.name ?? "Cocon"}
-            </h2>
-            <div className="flex gap-5">
-              {members.map((m) => (
-                <MemberAvatar
-                  key={m.uid}
-                  member={m}
-                  isCurrentUser={m.uid === user?.uid}
-                />
-              ))}
-              {members.length < 2 ? (
-                <Link
-                  href="/invite"
-                  className="flex flex-col items-center gap-1.5"
-                  aria-label="Inviter quelqu'un"
-                >
-                  <div className="w-14 h-14 rounded-full border-2 border-dashed border-border flex items-center justify-center text-foreground-faint text-[24px] hover:border-primary hover:text-primary transition-colors">
-                    +
-                  </div>
-                  <span className="text-[12px] text-muted-foreground">
-                    Inviter
-                  </span>
-                </Link>
-              ) : null}
-            </div>
           </section>
         ) : null}
 
