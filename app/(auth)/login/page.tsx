@@ -145,10 +145,10 @@ export default function LoginPage() {
     <div className="flex flex-col gap-8">
       <header className="flex flex-col gap-3">
         <h1 className="font-display text-[28px] font-semibold leading-[1.05]">
-          <span className="greeting-gradient">Bon retour</span> sur Cocon.
+          <span className="greeting-gradient">Cocon</span>
         </h1>
         <p className="text-[15px] text-muted-foreground leading-[1.5]">
-          Connecte-toi pour retrouver ton foyer.
+          Connecte-toi à ton foyer partagé.
         </p>
       </header>
 
