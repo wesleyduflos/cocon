@@ -104,12 +104,14 @@ export default function StocksPage() {
 
   async function handleLevelChange(stock: WithId<StockItem>, next: StockLevel) {
     if (!user || !household || stock.level === next) return;
+    const wasNotLow = stock.level !== "low" && stock.level !== "empty";
+    const becomesLow = next === "low" || next === "empty";
     await updateStockLevel(household.id, stock.id, next, user.uid);
-    if (next === "low" || next === "empty") {
+    // Si transition vers bas/épuisé → l'item est auto-ajouté aux courses
+    // (cf updateStockLevel côté firestore.ts).
+    if (wasNotLow && becomesLow) {
       showToast({
-        message: stock.linkedQuickAddItemId
-          ? `${stock.name} ajouté aux courses (stock bas)`
-          : `${stock.name} marqué ${LEVEL_LABEL[next].toLowerCase()}`,
+        message: `${stock.emoji ?? "📦"} ${stock.name} ajouté aux courses`,
       });
     }
   }

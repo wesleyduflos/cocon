@@ -958,7 +958,7 @@ export async function updateStockLevel(
     tx.update(ref, update);
   });
 
-  if (triggerAutoReorder && linkedQuickAddItemId && stockSnapshot) {
+  if (triggerAutoReorder && stockSnapshot) {
     // Vérifier qu'on n'a pas déjà un pending shopping-item pour ce stock
     const existing = await getDocs(
       query(
@@ -968,16 +968,41 @@ export async function updateStockLevel(
       ),
     );
     if (existing.empty) {
-      // Charger le quick-add pour récupérer rayon par défaut
-      const qaSnap = await getDoc(
-        quickAddItemDoc(householdId, linkedQuickAddItemId),
-      );
-      const qa = qaSnap.data();
+      // Résolution du rayon :
+      // 1) Si linkedQuickAddItemId set → utilise le quick-add lié
+      // 2) Sinon, essaie de trouver un quick-add avec le même nom
+      // 3) Sinon, "Autre"
+      let rayon: ShoppingRayon = "Autre";
+      let unit: string | undefined;
+
+      if (linkedQuickAddItemId) {
+        const qaSnap = await getDoc(
+          quickAddItemDoc(householdId, linkedQuickAddItemId),
+        );
+        const qa = qaSnap.data();
+        if (qa) {
+          rayon = qa.defaultRayon ?? "Autre";
+          unit = qa.defaultUnit;
+        }
+      } else {
+        // Fallback : matching par nom case-insensitive
+        const allQa = await getDocs(quickAddItemsCollection(householdId));
+        const normalizedStockName = stockSnapshot.name.toLowerCase().trim();
+        for (const qaDoc of allQa.docs) {
+          const qa = qaDoc.data();
+          if (qa.name?.toLowerCase().trim() === normalizedStockName) {
+            rayon = qa.defaultRayon ?? "Autre";
+            unit = qa.defaultUnit;
+            break;
+          }
+        }
+      }
+
       await createShoppingItem(householdId, {
         name: stockSnapshot.name,
         emoji: stockSnapshot.emoji,
-        rayon: qa?.defaultRayon ?? "Autre",
-        unit: qa?.defaultUnit,
+        rayon,
+        unit,
         addedBy: userId,
         fromStockAuto: true,
         stockItemId: stockId,
