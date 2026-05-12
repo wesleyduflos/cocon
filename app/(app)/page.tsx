@@ -13,7 +13,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { AppHeader } from "@/components/shared/app-header";
-import { DashCard } from "@/components/shared/dash-card";
+import { DashSection } from "@/components/shared/dash-section";
 import { MemberAvatar } from "@/components/shared/member-avatar";
 import { TaskRow } from "@/components/tasks/task-row";
 import { useToast } from "@/components/shared/toast-provider";
@@ -304,9 +304,15 @@ export default function DashboardPage() {
     [shoppingItems],
   );
 
-  const stockLowCount = useMemo(
+  const stocksToRenew = useMemo(
     () =>
-      stocks.filter((s) => s.level === "low" || s.level === "empty").length,
+      stocks
+        .filter((s) => s.level === "low" || s.level === "empty")
+        .sort((a, b) => {
+          // empty avant low
+          if (a.level !== b.level) return a.level === "empty" ? -1 : 1;
+          return a.name.localeCompare(b.name, "fr");
+        }),
     [stocks],
   );
 
@@ -435,87 +441,16 @@ export default function DashboardPage() {
             })
           : null}
 
-        {/* Alertes du foyer — section masquée si vide */}
-        {alerts.length > 0 ? (
-          <section className="flex flex-col gap-2.5">
-            <h2 className="text-[0.6875rem] uppercase tracking-[0.12em] text-muted-foreground flex items-center gap-1.5">
-              <AlertTriangle size={11} className="text-primary" />
-              Alertes du foyer · {alerts.length}
-            </h2>
-            <ul className="flex flex-col gap-1.5">
-              {alerts.map((a, idx) => (
-                <li key={`${a.kind}-${idx}`}>
-                  <Link
-                    href={a.href}
-                    className="rounded-[10px] border border-border-subtle bg-surface px-3 py-2.5 flex items-center gap-2.5 hover:bg-surface-elevated transition-colors"
-                  >
-                    <span className="text-[16px] leading-none shrink-0">
-                      {a.emoji}
-                    </span>
-                    <span className="flex-1 text-[13px] leading-snug truncate">
-                      {a.title}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
-
-        {/* Raccourcis modules — cards harmonisées (<DashCard>) */}
-        <div className="flex flex-col gap-2">
-          <DashCard
-            icon={ShoppingBag}
-            tone="primary"
-            href="/shopping"
-            title={
-              shoppingPendingCount > 0
-                ? `${shoppingPendingCount} article${shoppingPendingCount > 1 ? "s" : ""} à acheter`
-                : "Liste de courses vide"
-            }
-            sublabel={
-              shoppingPendingCount > 0
-                ? "Tap pour voir la liste"
-                : "Tap pour ajouter"
-            }
-          />
-
-          {stockLowCount > 0 ? (
-            <DashCard
-              icon={Box}
-              tone="secondary"
-              href="/stocks"
-              title={`${stockLowCount} stock${stockLowCount > 1 ? "s" : ""} à renouveler`}
-              sublabel="Bas ou épuisés"
-            />
-          ) : null}
-
-          {activeRun && activeRunProgress ? (
-            <DashCard
-              icon={CheckSquare}
-              tone="success"
-              href="/preparations"
-              title={`${activeRun.templateEmoji ?? "🗂️"} ${activeRun.templateName}`}
-              sublabel={`Préparation en cours · ${activeRunProgress.done}/${activeRunProgress.total} tâches`}
-            />
-          ) : null}
-        </div>
-
-        {/* Tâches du jour */}
+        {/* Tâches du jour — section "importante" (zone d'attention principale) */}
         {todayTasks.length > 0 && household && user ? (
-          <section className="flex flex-col gap-2.5">
-            <div className="flex items-baseline justify-between">
-              <h2 className="text-[0.6875rem] uppercase tracking-[0.12em] text-muted-foreground">
-                Tâches du jour
-              </h2>
-              <Link
-                href="/tasks"
-                className="text-[12px] text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Tout voir →
-              </Link>
-            </div>
-            <ul className="flex flex-col gap-2">
+          <DashSection
+            icon={CheckSquare}
+            iconTone="primary"
+            title="Tâches du jour"
+            count={todayTasks.length}
+            href="/tasks"
+          >
+            <ul className="flex flex-col gap-1.5">
               {todayTasks.map((t) => (
                 <li key={t.id}>
                   <TaskRow
@@ -527,24 +462,19 @@ export default function DashboardPage() {
                 </li>
               ))}
             </ul>
-          </section>
+          </DashSection>
         ) : null}
 
-        {/* Tâches cette semaine (hors aujourd'hui) */}
+        {/* Cette semaine */}
         {weekTasks.length > 0 && household && user ? (
-          <section className="flex flex-col gap-2.5">
-            <div className="flex items-baseline justify-between">
-              <h2 className="text-[0.6875rem] uppercase tracking-[0.12em] text-muted-foreground">
-                Cette semaine
-              </h2>
-              <Link
-                href="/tasks"
-                className="text-[12px] text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Tout voir →
-              </Link>
-            </div>
-            <ul className="flex flex-col gap-2">
+          <DashSection
+            icon={CheckSquare}
+            iconTone="info"
+            title="Cette semaine"
+            count={weekTasks.length}
+            href="/tasks"
+          >
+            <ul className="flex flex-col gap-1.5">
               {weekTasks.map((t) => (
                 <li key={t.id}>
                   <TaskRow
@@ -555,16 +485,18 @@ export default function DashboardPage() {
                 </li>
               ))}
             </ul>
-          </section>
+          </DashSection>
         ) : null}
 
         {/* Agenda du jour */}
         {sortedEvents.length > 0 ? (
-          <section className="flex flex-col gap-2.5">
-            <h2 className="text-[0.6875rem] uppercase tracking-[0.12em] text-muted-foreground flex items-center gap-1.5">
-              <Calendar size={11} />
-              Agenda · {sortedEvents.length}
-            </h2>
+          <DashSection
+            icon={Calendar}
+            iconTone="info"
+            title="Agenda du jour"
+            count={sortedEvents.length}
+            href="/calendar"
+          >
             <ul className="flex flex-col gap-1.5">
               {sortedEvents.map((e) => {
                 const start = e.startTime.toDate();
@@ -593,8 +525,125 @@ export default function DashboardPage() {
                 );
               })}
             </ul>
-          </section>
+          </DashSection>
         ) : null}
+
+        {/* Stocks à renouveler — liste détaillée */}
+        {stocksToRenew.length > 0 ? (
+          <DashSection
+            icon={Box}
+            iconTone="secondary"
+            title="Stocks à renouveler"
+            count={stocksToRenew.length}
+            href="/stocks"
+          >
+            <ul className="flex flex-col gap-1.5">
+              {stocksToRenew.slice(0, 5).map((s) => (
+                <li key={s.id}>
+                  <Link
+                    href="/stocks"
+                    className="rounded-[10px] border border-border-subtle bg-surface px-3 py-2.5 flex items-center gap-2.5 hover:bg-surface-elevated transition-colors"
+                  >
+                    <span className="text-[16px] leading-none shrink-0">
+                      {s.emoji ?? "📦"}
+                    </span>
+                    <span className="flex-1 text-[13px] leading-snug truncate">
+                      {s.name}
+                    </span>
+                    <span
+                      className={`text-[11px] font-semibold uppercase tracking-[0.1em] ${
+                        s.level === "empty"
+                          ? "text-destructive"
+                          : "text-[#FF6B24]"
+                      }`}
+                    >
+                      {s.level === "empty" ? "Épuisé" : "Bas"}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </DashSection>
+        ) : null}
+
+        {/* Alertes du foyer (garanties + récurrentes demain) */}
+        {alerts.length > 0 ? (
+          <DashSection
+            icon={AlertTriangle}
+            iconTone="destructive"
+            title="Alertes du foyer"
+            count={alerts.length}
+          >
+            <ul className="flex flex-col gap-1.5">
+              {alerts.map((a, idx) => (
+                <li key={`${a.kind}-${idx}`}>
+                  <Link
+                    href={a.href}
+                    className="rounded-[10px] border border-border-subtle bg-surface px-3 py-2.5 flex items-center gap-2.5 hover:bg-surface-elevated transition-colors"
+                  >
+                    <span className="text-[16px] leading-none shrink-0">
+                      {a.emoji}
+                    </span>
+                    <span className="flex-1 text-[13px] leading-snug truncate">
+                      {a.title}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </DashSection>
+        ) : null}
+
+        {/* Préparation en cours */}
+        {activeRun && activeRunProgress ? (
+          <DashSection
+            icon={CheckSquare}
+            iconTone="success"
+            title="Préparation en cours"
+            href="/preparations"
+          >
+            <Link
+              href="/preparations"
+              className="rounded-[10px] border border-border-subtle bg-surface px-3 py-2.5 flex items-center gap-2.5 hover:bg-surface-elevated transition-colors"
+            >
+              <span className="text-[18px] leading-none shrink-0">
+                {activeRun.templateEmoji ?? "🗂️"}
+              </span>
+              <div className="flex-1 flex flex-col min-w-0">
+                <span className="text-[13px] font-medium truncate">
+                  {activeRun.templateName}
+                </span>
+                <span className="text-[11px] text-muted-foreground">
+                  {activeRunProgress.done}/{activeRunProgress.total} tâches
+                  faites
+                </span>
+              </div>
+            </Link>
+          </DashSection>
+        ) : null}
+
+        {/* Liste de courses */}
+        <DashSection
+          icon={ShoppingBag}
+          iconTone="primary"
+          title="Liste de courses"
+          count={
+            shoppingPendingCount > 0 ? shoppingPendingCount : undefined
+          }
+          href="/shopping"
+        >
+          <Link
+            href="/shopping"
+            className="rounded-[10px] border border-border-subtle bg-surface px-3 py-2.5 flex items-center gap-2.5 hover:bg-surface-elevated transition-colors"
+          >
+            <span className="text-[16px] leading-none shrink-0">🛒</span>
+            <span className="flex-1 text-[13px]">
+              {shoppingPendingCount > 0
+                ? `${shoppingPendingCount} article${shoppingPendingCount > 1 ? "s" : ""} à acheter`
+                : "Liste vide — tap pour ajouter"}
+            </span>
+          </Link>
+        </DashSection>
 
         {/* Score d'équilibre (opt-in) */}
         {balance && household && members.length > 0 ? (
