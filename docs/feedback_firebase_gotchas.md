@@ -140,3 +140,42 @@ Couplage avec WebAuthn standard (`navigator.credentials.create()/.get()`) côté
 C'est ~3-4h de code + crypto à valider. Reporté sprint 3 (priorité basse, magic link couvre 100% des besoins en attendant).
 
 L'endpoint `/api/auth/lookup` prévu dans `architecture-cocon.md §4.2` reste aussi à faire — pour l'instant, le flow email-first signin sans lookup est anti-énumération par design (Firebase ne révèle pas si l'email existe), donc pas urgent.
+
+## 18. Firestore Web SDK — `query()` n'accepte pas une liste de constraints typée union
+
+Quand on construit une query dynamique avec un tableau de constraints (`[orderBy(...), where(...), limit(...)]`), TypeScript infère le type du tableau depuis son premier élément et plante les `push()` suivants avec « `QueryFieldFilterConstraint` not assignable to `QueryOrderByConstraint` ». Bug rencontré sur `listJournalEntries` en sprint 4.
+
+**Fix** : chaîner les `query()` à la place — `query(base, where(...))` puis `query(constrained, limit(...))`. Chaque appel retourne un `Query<T>` typé qui accepte n'importe quelle contrainte.
+
+```typescript
+// ❌ Inféré comme QueryOrderByConstraint[]
+const constraints = [orderBy("createdAt", "desc")];
+if (before) constraints.push(where("createdAt", "<", before)); // erreur
+
+// ✅
+const base = query(coll, orderBy("createdAt", "desc"));
+const filtered = before ? query(base, where("createdAt", "<", before)) : base;
+const limited = query(filtered, limit(30));
+```
+
+## 19. Firestore triggers v2 — dédoublonnage à la main (sprint 4)
+
+Cloud Functions v2 `onDocumentUpdated` se déclenche à **chaque** update, y compris une update qui ne change pas le champ qu'on regarde. Pour des journaux d'événements (sprint 4), il faut comparer `before.data()` vs `after.data()` et n'agir que sur la transition pertinente.
+
+Patterns appliqués pour le journal du foyer :
+- `task_completed` : `before.status !== "done" && after.status === "done"` (et `!after.checklistRunId` pour éviter doublon avec les events de préparation).
+- `preparation_completed` : `!before.completedAt && after.completedAt` (transition vers complétion, pas update annexe).
+- `stock_renewed` : `before.level !== "full" && after.level === "full"`.
+- `member_joined` : skip l'owner créé dans les 5 premières minutes du household (= création du cocon, pas un "joined").
+
+Sans ces gardes, un simple `updateDoc(ref, { updatedAt })` regénérerait toutes les entries déjà créées.
+
+## 20. JournalEnabled / BalanceEnabled — opt-in vs opt-out (sprint 4)
+
+Le score d'équilibre est **off par défaut** (potentiellement culpabilisant si mal calibré). Le journal est **on par défaut** (faible risque, valeur immédiate).
+
+Conséquences sur les checks côté client et Cloud Function :
+- Score : `if (household.balanceEnabled === true)` — undefined / false / absent → off.
+- Journal : `if (household.journalEnabled !== false)` — undefined / true / absent → on.
+
+Sans cette distinction, on aurait soit du journal silencieux pour les anciens households (Cocon qui existaient avant sprint 4), soit du score affiché par défaut. Le `!== false` est la bonne forme pour les features on par défaut avec rétro-compatibilité.
