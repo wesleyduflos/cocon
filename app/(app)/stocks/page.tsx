@@ -2,6 +2,8 @@
 
 import { Pencil, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
+
+import { StockLevelTube } from "@/components/stocks/stock-level-tube";
 import { useMemo, useState } from "react";
 
 import { useToast } from "@/components/shared/toast-provider";
@@ -29,11 +31,18 @@ const LEVEL_COLOR: Record<StockLevel, string> = {
   empty: "bg-destructive",
 };
 
-const LEVEL_DOT: Record<StockLevel, string> = {
-  full: "🟢",
-  half: "🟡",
-  low: "🟠",
-  empty: "🔴",
+const LEVEL_TEXT_COLOR: Record<StockLevel, string> = {
+  full: "text-[#4CAF50]",
+  half: "text-[#FFC845]",
+  low: "text-[#FF6B24]",
+  empty: "text-[#E5374D]",
+};
+
+const LEVEL_CYCLE: Record<StockLevel, StockLevel> = {
+  full: "half",
+  half: "low",
+  low: "empty",
+  empty: "full",
 };
 
 const LEVELS: StockLevel[] = ["full", "half", "low", "empty"];
@@ -206,57 +215,76 @@ export default function StocksPage() {
               return (
                 <li
                   key={stock.id}
-                  className="rounded-[14px] border border-border bg-surface px-4 py-3 flex flex-col gap-2"
+                  className="rounded-[14px] border border-border bg-surface px-4 py-3 flex gap-3"
                 >
-                  <div className="flex items-center gap-3">
-                    {stock.emoji ? (
-                      <span className="text-[22px]">{stock.emoji}</span>
-                    ) : (
-                      <span className="text-[18px]">
-                        {LEVEL_DOT[stock.level]}
-                      </span>
-                    )}
-                    <div className="flex-1 flex flex-col min-w-0">
-                      <span className="text-[15px] font-medium truncate">
-                        {stock.name}
-                      </span>
-                      <span className="text-[11px] text-muted-foreground">
-                        {LEVEL_LABEL[stock.level]} · renouvelé {timeAgo(lastMs)}
-                        {nextStr ? ` · prochain prévu ${nextStr}` : ""}
-                      </span>
-                    </div>
-                    <Link
-                      href={`/stocks/${stock.id}/edit`}
-                      aria-label={`Modifier ${stock.name}`}
-                      className="w-8 h-8 rounded-[8px] flex items-center justify-center hover:bg-surface-elevated transition-colors text-muted-foreground"
-                    >
-                      <Pencil size={14} />
-                    </Link>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(stock)}
-                      aria-label="Supprimer"
-                      className="w-8 h-8 rounded-[8px] flex items-center justify-center hover:bg-destructive/20 hover:text-destructive transition-colors"
-                    >
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                  {/* Niveau picker */}
-                  <div className="flex gap-1">
-                    {LEVELS.map((lvl) => (
+                  {/* Tube vertical cliquable : cycle les niveaux */}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleLevelChange(stock, LEVEL_CYCLE[stock.level])
+                    }
+                    aria-label={`Niveau ${LEVEL_LABEL[stock.level]} — tap pour changer`}
+                    className="hover:scale-105 active:scale-95 transition-transform"
+                  >
+                    <StockLevelTube level={stock.level} />
+                  </button>
+
+                  <div className="flex-1 flex flex-col gap-2 min-w-0">
+                    <div className="flex items-start gap-2">
+                      {stock.emoji ? (
+                        <span className="text-[18px] leading-tight">
+                          {stock.emoji}
+                        </span>
+                      ) : null}
+                      <div className="flex-1 flex flex-col min-w-0">
+                        <span className="text-[15px] font-medium truncate">
+                          {stock.name}
+                        </span>
+                        <span className="text-[11px] text-muted-foreground leading-tight">
+                          <span
+                            className={`font-medium ${LEVEL_TEXT_COLOR[stock.level]}`}
+                          >
+                            {LEVEL_LABEL[stock.level]}
+                          </span>
+                          {" · renouvelé "}
+                          {timeAgo(lastMs)}
+                          {nextStr ? ` · prochain ${nextStr}` : ""}
+                        </span>
+                      </div>
+                      <Link
+                        href={`/stocks/${stock.id}/edit`}
+                        aria-label={`Modifier ${stock.name}`}
+                        className="w-7 h-7 rounded-[8px] flex items-center justify-center hover:bg-surface-elevated transition-colors text-muted-foreground shrink-0"
+                      >
+                        <Pencil size={12} />
+                      </Link>
                       <button
-                        key={lvl}
                         type="button"
-                        onClick={() => handleLevelChange(stock, lvl)}
-                        aria-label={LEVEL_LABEL[lvl]}
-                        aria-pressed={stock.level === lvl}
-                        className={`flex-1 h-2 rounded-full transition-all ${
-                          stock.level === lvl
-                            ? `${LEVEL_COLOR[lvl]} shadow-[0_0_8px_rgba(255,107,36,0.3)]`
-                            : "bg-border-subtle hover:bg-border"
-                        }`}
-                      />
-                    ))}
+                        onClick={() => handleDelete(stock)}
+                        aria-label="Supprimer"
+                        className="w-7 h-7 rounded-[8px] flex items-center justify-center hover:bg-destructive/20 hover:text-destructive transition-colors shrink-0"
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+
+                    {/* Niveau picker précis (4 segments) */}
+                    <div className="flex gap-1">
+                      {LEVELS.map((lvl) => (
+                        <button
+                          key={lvl}
+                          type="button"
+                          onClick={() => handleLevelChange(stock, lvl)}
+                          aria-label={LEVEL_LABEL[lvl]}
+                          aria-pressed={stock.level === lvl}
+                          className={`flex-1 h-1.5 rounded-full transition-all ${
+                            stock.level === lvl
+                              ? `${LEVEL_COLOR[lvl]} shadow-[0_0_8px_rgba(255,107,36,0.3)]`
+                              : "bg-border-subtle hover:bg-border"
+                          }`}
+                        />
+                      ))}
+                    </div>
                   </div>
                 </li>
               );
