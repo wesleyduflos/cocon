@@ -1,16 +1,18 @@
 "use client";
 
-import { Sparkles } from "lucide-react";
+import { Mic, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { TaskRow } from "@/components/tasks/task-row";
 import { useToast } from "@/components/shared/toast-provider";
+import { VoiceCaptureModal } from "@/components/shared/voice-capture-modal";
 import { useAuth } from "@/hooks/use-auth";
 import { useCurrentHousehold } from "@/hooks/use-household";
 import { useMembers, type MemberProfile } from "@/hooks/use-members";
 import { usePendingSuggestions } from "@/hooks/use-suggestions";
 import { useTasks } from "@/hooks/use-tasks";
+import { isVoiceCaptureSupported } from "@/lib/ai/voice-parse";
 import {
   acceptSuggestion,
   dismissSuggestion,
@@ -79,6 +81,20 @@ export default function DashboardPage() {
   const { suggestions } = usePendingSuggestions(household?.id);
   const { showToast } = useToast();
   const [busySuggestionId, setBusySuggestionId] = useState<string | null>(null);
+  const [voiceOpen, setVoiceOpen] = useState(false);
+
+  function handleVoiceClick() {
+    if (!isVoiceCaptureSupported()) {
+      showToast({ message: "Note vocale non supportée sur ce navigateur." });
+      return;
+    }
+    setVoiceOpen(true);
+  }
+
+  const otherMemberId = useMemo(() => {
+    if (!user || !household) return undefined;
+    return household.memberIds.find((id) => id !== user.uid);
+  }, [household, user]);
 
   async function handleAcceptSuggestion(s: WithId<Suggestion>) {
     if (!household || !user) return;
@@ -313,6 +329,26 @@ export default function DashboardPage() {
         ) : null}
 
       </div>
+
+      {household && user ? (
+        <>
+          <button
+            type="button"
+            onClick={handleVoiceClick}
+            aria-label="Note vocale"
+            className="fixed right-5 bottom-[88px] z-40 w-14 h-14 rounded-full bg-gradient-to-br from-primary to-secondary text-primary-foreground flex items-center justify-center shadow-[0_0_28px_rgba(255,107,36,0.5)] hover:scale-105 transition-transform active:scale-95"
+          >
+            <Mic size={22} strokeWidth={2.2} />
+          </button>
+          <VoiceCaptureModal
+            open={voiceOpen}
+            onClose={() => setVoiceOpen(false)}
+            householdId={household.id}
+            userId={user.uid}
+            otherMemberId={otherMemberId}
+          />
+        </>
+      ) : null}
     </main>
   );
 }

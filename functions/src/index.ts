@@ -20,3 +20,4 @@ export {
   deletePasskey,
 } from "./passkeys";
 export { suggestPreparations } from "./suggestPreparations";
+export { voiceParse } from "./voiceParse";
