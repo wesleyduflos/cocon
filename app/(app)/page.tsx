@@ -302,7 +302,7 @@ export default function DashboardPage() {
     <main className="flex flex-1 flex-col">
       <AppHeader />
 
-      <div className="w-full max-w-md mx-auto flex flex-col gap-6 px-5 pt-5 pb-7">
+      <div className="w-full max-w-md mx-auto flex flex-col gap-6 px-5 pt-2 pb-7">
         {/* Hero unifié : greeting + météo dans une card gradient subtile */}
         <section
           className="rounded-[20px] px-5 py-5 flex flex-col gap-3 border"
