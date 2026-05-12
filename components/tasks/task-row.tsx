@@ -27,9 +27,18 @@ interface TaskRowProps {
   householdId: string;
   userId: string;
   overdue?: boolean;
+  /** Variante compacte alignée sur les items des DashSection (alertes,
+   *  stocks, agenda). Padding et tailles réduits. */
+  compact?: boolean;
 }
 
-export function TaskRow({ task, householdId, userId, overdue }: TaskRowProps) {
+export function TaskRow({
+  task,
+  householdId,
+  userId,
+  overdue,
+  compact,
+}: TaskRowProps) {
   const { showToast } = useToast();
   const [pending, setPending] = useState(false);
   const due = formatDueLabel(task);
@@ -76,12 +85,22 @@ export function TaskRow({ task, householdId, userId, overdue }: TaskRowProps) {
     }
   }
 
+  // Tailles harmonisees avec les autres items des DashSection (px-3 py-2.5).
+  const rootRadius = compact ? "rounded-[10px]" : "rounded-[12px]";
+  const rootBorder = compact ? "border-border-subtle" : "border-border";
+  const checkboxPad = compact ? "pl-3 pr-1 py-2.5" : "pl-4 pr-1 py-3.5";
+  const checkboxSize = compact ? "w-[18px] h-[18px]" : "w-5 h-5";
+  const linkPad = compact ? "py-2.5 pr-3" : "py-3.5 pr-4";
+  const titleSize = compact ? "text-[13px]" : "text-[15px]";
+  const metaSize = compact ? "text-[11px]" : "text-[12px]";
+  const iconSize = compact ? 12 : 13;
+
   return (
     <div
-      className={`relative rounded-[12px] border bg-surface flex items-center gap-3.5 transition-colors hover:bg-surface-elevated ${
+      className={`relative ${rootRadius} border bg-surface flex items-center gap-2.5 transition-colors hover:bg-surface-elevated ${
         overdue
           ? "border-l-2 border-l-destructive border-y-border border-r-border"
-          : "border-border"
+          : rootBorder
       }`}
     >
       <button
@@ -90,32 +109,32 @@ export function TaskRow({ task, householdId, userId, overdue }: TaskRowProps) {
         disabled={pending}
         aria-label={isDone ? "Décocher la tâche" : "Marquer comme faite"}
         aria-pressed={isDone}
-        className="shrink-0 pl-4 pr-1 py-3.5 flex items-center"
+        className={`shrink-0 ${checkboxPad} flex items-center`}
       >
         <span
-          className={`w-5 h-5 rounded-[6px] border-[1.5px] flex items-center justify-center transition-all ${
+          className={`${checkboxSize} rounded-[6px] border-[1.5px] flex items-center justify-center transition-all ${
             isDone
               ? "bg-secondary border-secondary"
               : "border-[#5C3D2C] bg-transparent hover:border-primary"
           }`}
         >
           {isDone ? (
-            <span className="text-[12px] text-secondary-foreground">✓</span>
+            <span className="text-[11px] text-secondary-foreground">✓</span>
           ) : null}
         </span>
       </button>
       <Link
         href={`/tasks/${task.id}`}
-        className="flex-1 flex flex-col min-w-0 py-3.5 pr-4"
+        className={`flex-1 flex flex-col min-w-0 ${linkPad}`}
       >
         <span
-          className={`flex items-center gap-1.5 text-[15px] font-medium truncate ${
+          className={`flex items-center gap-1.5 ${titleSize} font-medium truncate ${
             isDone ? "line-through text-muted-foreground" : "text-foreground"
           }`}
         >
           {task.priority ? (
             <Star
-              size={13}
+              size={iconSize}
               fill="var(--secondary)"
               className="shrink-0 text-[var(--secondary)]"
               aria-label="Tâche prioritaire"
@@ -123,7 +142,7 @@ export function TaskRow({ task, householdId, userId, overdue }: TaskRowProps) {
           ) : null}
           {task.recurrenceRule ? (
             <Repeat
-              size={13}
+              size={iconSize}
               className="shrink-0 text-muted-foreground"
               aria-label={describeRRule(task.recurrenceRule)}
             />
@@ -131,7 +150,7 @@ export function TaskRow({ task, householdId, userId, overdue }: TaskRowProps) {
           <span className="truncate">{task.title}</span>
         </span>
         {task.category || due ? (
-          <span className="text-[12px] text-muted-foreground truncate">
+          <span className={`${metaSize} text-muted-foreground truncate`}>
             {[task.category, due].filter(Boolean).join(" · ")}
           </span>
         ) : null}

@@ -458,6 +458,7 @@ export default function DashboardPage() {
                     householdId={household.id}
                     userId={user.uid}
                     overdue={isOverdue(t, new Date())}
+                    compact
                   />
                 </li>
               ))}
@@ -481,6 +482,7 @@ export default function DashboardPage() {
                     task={t}
                     householdId={household.id}
                     userId={user.uid}
+                    compact
                   />
                 </li>
               ))}
