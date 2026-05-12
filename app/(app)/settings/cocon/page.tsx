@@ -1,8 +1,8 @@
 "use client";
 
-import { ArrowLeft, RotateCcw } from "lucide-react";
+import { ArrowLeft, Copy, KeyRound, RefreshCw, RotateCcw } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState, type FormEvent } from "react";
+import { useState } from "react";
 
 import { MemberAvatar } from "@/components/shared/member-avatar";
 import { useToast } from "@/components/shared/toast-provider";
@@ -22,10 +22,9 @@ import {
   listJournalEntries,
   seedChecklistTemplates,
   seedQuickAddItems,
+  setHouseholdInviteCode,
   updateHousehold,
 } from "@/lib/firebase/firestore";
-
-const EMOJI_CHOICES = ["🏠", "🪴", "🕯️", "🔥", "🦊", "🌿", "☕", "✨"];
 
 export default function CoconSettingsPage() {
   const { user } = useAuth();
@@ -33,15 +32,13 @@ export default function CoconSettingsPage() {
   const { members } = useMembers(household?.memberIds);
   const { showToast } = useToast();
 
-  const [name, setName] = useState("");
-  const [emoji, setEmoji] = useState("🏠");
-  const [submitting, setSubmitting] = useState(false);
   const [reseedingQa, setReseedingQa] = useState(false);
   const [reseedingPrep, setReseedingPrep] = useState(false);
   const [togglingBalance, setTogglingBalance] = useState(false);
   const [togglingJournal, setTogglingJournal] = useState(false);
   const [exportingJournal, setExportingJournal] = useState(false);
   const [clearingJournal, setClearingJournal] = useState(false);
+  const [regeneratingCode, setRegeneratingCode] = useState(false);
 
   // Compteurs des modules
   const { tasks } = useTasks(household?.id);
@@ -51,23 +48,44 @@ export default function CoconSettingsPage() {
   const { entries: memoryEntries } = useMemoryEntries(household?.id);
   const { templates } = useChecklistTemplates(household?.id);
 
-  useEffect(() => {
-    if (!household) return;
-    setName(household.name);
-    setEmoji(household.emoji ?? "🏠");
-  }, [household]);
-
   const isOwner = household?.ownerId === user?.uid;
 
-  async function handleSubmit(event: FormEvent) {
-    event.preventDefault();
-    if (!household) return;
-    setSubmitting(true);
+  async function handleRegenerateCode() {
+    if (!household || !user) return;
+    if (
+      household.inviteCode &&
+      !window.confirm(
+        "Générer un nouveau code ? L'ancien sera désactivé immédiatement.",
+      )
+    )
+      return;
+    setRegeneratingCode(true);
     try {
-      await updateHousehold(household.id, { name: name.trim(), emoji });
-      showToast({ message: "Cocon mis à jour" });
+      const code = await setHouseholdInviteCode(
+        household.id,
+        household.name,
+        user.uid,
+      );
+      showToast({ message: `Nouveau code : ${code}` });
+    } catch (err) {
+      showToast({
+        message:
+          err instanceof Error
+            ? `Erreur : ${err.message}`
+            : "Génération impossible.",
+      });
     } finally {
-      setSubmitting(false);
+      setRegeneratingCode(false);
+    }
+  }
+
+  async function handleCopyCode() {
+    if (!household?.inviteCode) return;
+    try {
+      await navigator.clipboard.writeText(household.inviteCode);
+      showToast({ message: "Code copié" });
+    } catch {
+      showToast({ message: "Impossible de copier — recopie à la main." });
     }
   }
 
@@ -218,64 +236,76 @@ export default function CoconSettingsPage() {
           </div>
         </header>
 
-        {/* Édition nom + emoji (owner only) */}
-        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-          <div className="flex flex-col gap-2">
-            <label
-              htmlFor="cocon-name"
-              className="text-[0.6875rem] uppercase tracking-[0.12em] text-muted-foreground"
-            >
-              Nom du cocon
-            </label>
-            <input
-              id="cocon-name"
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              maxLength={48}
-              required
-              disabled={!isOwner || submitting}
-              className="rounded-[12px] border border-border bg-surface px-4 py-3 text-[15px] focus:outline-none focus:border-primary focus:ring-2 focus:ring-[rgba(255,107,36,0.18)] disabled:opacity-50"
-            />
-            {!isOwner ? (
-              <p className="text-[12px] text-foreground-faint">
-                Seul·e l&apos;owner peut renommer le cocon.
+        {/* Code d'invitation : partage le code court avec quelqu'un pour
+            qu'il rejoigne le cocon en le tapant dans /onboarding. */}
+        <section className="flex flex-col gap-3">
+          <h2 className="text-[0.6875rem] uppercase tracking-[0.12em] text-muted-foreground flex items-center gap-1.5">
+            <KeyRound size={11} />
+            Code d&apos;invitation
+          </h2>
+          {household?.inviteCode ? (
+            <article className="rounded-[14px] border border-[rgba(255,107,36,0.32)] bg-gradient-to-br from-[rgba(255,107,36,0.10)] to-[rgba(255,200,69,0.04)] px-5 py-4 flex flex-col gap-3">
+              <button
+                type="button"
+                onClick={handleCopyCode}
+                aria-label="Copier le code"
+                className="font-display font-bold text-[36px] tracking-[0.2em] text-center text-foreground hover:text-primary transition-colors py-3 cursor-pointer select-all"
+              >
+                {household.inviteCode}
+              </button>
+              <p className="text-[12px] text-muted-foreground text-center leading-snug">
+                Partage ce code avec quelqu&apos;un pour qu&apos;il rejoigne ton
+                cocon. Il l&apos;entre dans l&apos;écran d&apos;accueil après
+                avoir créé son compte.
               </p>
-            ) : null}
-          </div>
-          <div className="flex flex-col gap-2.5">
-            <span className="text-[0.6875rem] uppercase tracking-[0.12em] text-muted-foreground">
-              Emoji
-            </span>
-            <div className="flex flex-wrap gap-2">
-              {EMOJI_CHOICES.map((choice) => (
+              <div className="flex gap-2">
                 <button
-                  key={choice}
                   type="button"
-                  onClick={() => setEmoji(choice)}
-                  disabled={!isOwner || submitting}
-                  aria-pressed={emoji === choice}
-                  className={`w-11 h-11 rounded-[10px] text-[20px] flex items-center justify-center transition-all ${
-                    emoji === choice
-                      ? "bg-primary text-primary-foreground shadow-[0_0_14px_rgba(255,107,36,0.45)]"
-                      : "bg-surface border border-border hover:bg-surface-elevated"
-                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  onClick={handleCopyCode}
+                  className="flex-1 rounded-[10px] border border-border bg-transparent text-foreground font-sans font-medium text-[13px] px-3 py-2 hover:bg-surface-elevated transition-colors flex items-center justify-center gap-2"
                 >
-                  {choice}
+                  <Copy size={14} />
+                  Copier
                 </button>
-              ))}
-            </div>
-          </div>
-          {isOwner ? (
-            <button
-              type="submit"
-              disabled={submitting || name.trim().length === 0}
-              className="rounded-[12px] bg-primary text-primary-foreground font-sans font-semibold text-[15px] px-[18px] py-3 shadow-[0_0_20px_rgba(255,107,36,0.35)] hover:bg-[var(--primary-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed self-start"
-            >
-              {submitting ? "Enregistrement…" : "Enregistrer"}
-            </button>
-          ) : null}
-        </form>
+                <button
+                  type="button"
+                  onClick={handleRegenerateCode}
+                  disabled={regeneratingCode || !isOwner}
+                  className="flex-1 rounded-[10px] border border-border bg-transparent text-foreground font-sans font-medium text-[13px] px-3 py-2 hover:bg-surface-elevated transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  <RefreshCw size={14} />
+                  {regeneratingCode ? "..." : "Régénérer"}
+                </button>
+              </div>
+              {!isOwner ? (
+                <p className="text-[11px] text-foreground-faint text-center">
+                  Seul·e l&apos;owner peut régénérer le code.
+                </p>
+              ) : null}
+            </article>
+          ) : (
+            <article className="rounded-[14px] border border-border bg-surface px-5 py-4 flex flex-col gap-3 items-start">
+              <p className="text-[13px] text-muted-foreground leading-snug">
+                Pas encore de code d&apos;invitation pour ce cocon. Génère-en
+                un pour permettre à quelqu&apos;un de rejoindre.
+              </p>
+              <button
+                type="button"
+                onClick={handleRegenerateCode}
+                disabled={regeneratingCode || !isOwner}
+                className="rounded-[10px] bg-primary text-primary-foreground font-sans font-semibold text-[14px] px-4 py-2 shadow-[0_0_14px_rgba(255,107,36,0.35)] hover:bg-[var(--primary-hover)] transition-colors disabled:opacity-50 flex items-center gap-2"
+              >
+                <KeyRound size={14} />
+                {regeneratingCode ? "Génération…" : "Générer un code"}
+              </button>
+              {!isOwner ? (
+                <p className="text-[11px] text-foreground-faint">
+                  Seul·e l&apos;owner peut générer un code.
+                </p>
+              ) : null}
+            </article>
+          )}
+        </section>
 
         {/* Membres */}
         <section className="flex flex-col gap-3">

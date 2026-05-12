@@ -34,6 +34,7 @@ import {
   type Household,
   type HouseholdMember,
   type Invitation,
+  type InviteCode,
   type JournalEntry,
   type MemoryEntry,
   type MemoryEntryType,
@@ -75,6 +76,7 @@ export const householdConverter = makeConverter<Household>();
 export const householdMemberConverter = makeConverter<HouseholdMember>();
 export const taskConverter = makeConverter<Task>();
 export const invitationConverter = makeConverter<Invitation>();
+export const inviteCodeConverter = makeConverter<InviteCode>();
 export const calendarEventConverter = makeConverter<CalendarEvent>();
 export const shoppingItemConverter = makeConverter<ShoppingItem>();
 export const quickAddItemConverter = makeConverter<QuickAddItem>();
@@ -156,6 +158,14 @@ export function invitationsCollection(): CollectionReference<Invitation> {
 
 export function invitationDoc(token: string): DocumentReference<Invitation> {
   return doc(db, "invitations", token).withConverter(invitationConverter);
+}
+
+export function inviteCodesCollection(): CollectionReference<InviteCode> {
+  return collection(db, "invite-codes").withConverter(inviteCodeConverter);
+}
+
+export function inviteCodeDoc(code: string): DocumentReference<InviteCode> {
+  return doc(db, "invite-codes", code).withConverter(inviteCodeConverter);
 }
 
 export function householdCalendarEventsCollection(
@@ -1476,7 +1486,132 @@ export function calendarEventsInRangeQuery(
 }
 
 /* =========================================================================
-   Invitations
+   Codes d'invitation courts (sprint 5 polish)
+
+   Code 6 caractères alphanumériques uppercase, sans 0/O/I/L/1 pour
+   éviter les confusions. Le user tape le code dans /onboarding pour
+   rejoindre le cocon. Le code est régénérable depuis /settings/cocon.
+
+   Sécurité : le code est le secret. 32^6 ≈ 1 milliard de combinaisons.
+   Pour bruteforcer, il faut deviner sans pouvoir lister les codes
+   existants (rules Firestore : read only par doc id connu).
+   ========================================================================= */
+
+const INVITE_CODE_ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+const INVITE_CODE_LENGTH = 6;
+
+export function generateInviteCodeString(): string {
+  let s = "";
+  const arr = new Uint32Array(INVITE_CODE_LENGTH);
+  if (typeof crypto !== "undefined" && crypto.getRandomValues) {
+    crypto.getRandomValues(arr);
+  } else {
+    for (let i = 0; i < INVITE_CODE_LENGTH; i++)
+      arr[i] = Math.floor(Math.random() * 0xffffffff);
+  }
+  for (let i = 0; i < INVITE_CODE_LENGTH; i++) {
+    s += INVITE_CODE_ALPHABET[arr[i] % INVITE_CODE_ALPHABET.length];
+  }
+  return s;
+}
+
+/**
+ * Crée (ou régénère) un code d'invitation pour un cocon. Si le cocon avait
+ * déjà un code, l'ancien est désactivé d'abord pour éviter qu'il continue
+ * à fonctionner.
+ */
+export async function setHouseholdInviteCode(
+  householdId: string,
+  householdName: string,
+  createdBy: string,
+): Promise<string> {
+  // Désactiver l'ancien code s'il existe
+  const oldHouseholdSnap = await getDoc(householdDoc(householdId));
+  const oldCode = oldHouseholdSnap.data()?.inviteCode;
+  if (oldCode) {
+    try {
+      await updateDoc(inviteCodeDoc(oldCode), { active: false });
+    } catch {
+      // Soft-fail : si le doc n'existe plus, on continue
+    }
+  }
+
+  // Générer un nouveau code unique (retry si collision improbable)
+  let code = generateInviteCodeString();
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const existing = await getDoc(inviteCodeDoc(code));
+    if (!existing.exists()) break;
+    code = generateInviteCodeString();
+  }
+
+  await setDoc(inviteCodeDoc(code), {
+    code,
+    householdId,
+    householdName,
+    createdAt: serverTimestamp() as unknown as Timestamp,
+    createdBy,
+    active: true,
+  });
+
+  await updateDoc(householdDoc(householdId), { inviteCode: code });
+  return code;
+}
+
+/**
+ * Résout un code d'invitation vers un cocon. Renvoie null si le code
+ * n'existe pas ou est désactivé.
+ */
+export async function lookupInviteCode(
+  code: string,
+): Promise<InviteCode | null> {
+  const normalized = code.trim().toUpperCase();
+  if (normalized.length === 0) return null;
+  const snap = await getDoc(inviteCodeDoc(normalized));
+  if (!snap.exists()) return null;
+  const data = snap.data();
+  if (!data.active) return null;
+  return data;
+}
+
+/**
+ * Ajoute un user au cocon ciblé par le code. Échoue si le code est invalide,
+ * désactivé, ou si le user est déjà membre.
+ */
+export async function joinHouseholdByCode(
+  code: string,
+  userId: string,
+): Promise<{ householdId: string; householdName: string }> {
+  const normalized = code.trim().toUpperCase();
+  const inviteSnap = await getDoc(inviteCodeDoc(normalized));
+  if (!inviteSnap.exists()) {
+    throw new Error("Code invalide.");
+  }
+  const invite = inviteSnap.data();
+  if (!invite.active) {
+    throw new Error("Ce code a été désactivé.");
+  }
+  const householdId = invite.householdId;
+  const householdSnap = await getDoc(householdDoc(householdId));
+  if (!householdSnap.exists()) {
+    throw new Error("Le cocon n'existe plus.");
+  }
+  const household = householdSnap.data();
+  if (household.memberIds.includes(userId)) {
+    throw new Error("Tu es déjà membre de ce cocon.");
+  }
+  await updateDoc(householdDoc(householdId), {
+    memberIds: arrayUnion(userId),
+  });
+  await setDoc(householdMemberDoc(householdId, userId), {
+    userId,
+    role: "member",
+    joinedAt: serverTimestamp() as unknown as Timestamp,
+  });
+  return { householdId, householdName: invite.householdName };
+}
+
+/* =========================================================================
+   Invitations (legacy par token UUID — toujours dispo)
    ========================================================================= */
 
 const INVITATION_TTL_DAYS = 7;

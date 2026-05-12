@@ -1,20 +1,27 @@
 "use client";
 
+import { KeyRound } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
 import { useAuth } from "@/hooks/use-auth";
-import { getHouseholdsOfUser } from "@/lib/firebase/firestore";
+import {
+  getHouseholdsOfUser,
+  joinHouseholdByCode,
+} from "@/lib/firebase/firestore";
 
 export default function OnboardingPage() {
   const router = useRouter();
   const { user, loading } = useAuth();
   const [checking, setChecking] = useState(true);
+  const [code, setCode] = useState("");
+  const [joining, setJoining] = useState(false);
+  const [joinError, setJoinError] = useState<string | null>(null);
 
   // Si pas connecté → /login.
   // Si connecté ET déjà membre d'un cocon → /dashboard.
-  // Sinon → afficher les 2 choix (créer / rejoindre).
+  // Sinon → afficher les 2 choix (créer / rejoindre via code).
   useEffect(() => {
     if (loading) return;
     if (!user) {
@@ -39,6 +46,24 @@ export default function OnboardingPage() {
       cancelled = true;
     };
   }, [user, loading, router]);
+
+  async function handleJoin(event: FormEvent) {
+    event.preventDefault();
+    if (!user) return;
+    setJoinError(null);
+    setJoining(true);
+    try {
+      await joinHouseholdByCode(code.trim().toUpperCase(), user.uid);
+      router.replace("/");
+    } catch (err) {
+      setJoinError(
+        err instanceof Error
+          ? err.message
+          : "Code invalide ou inutilisable.",
+      );
+      setJoining(false);
+    }
+  }
 
   if (loading || checking || !user) {
     return (
@@ -70,19 +95,49 @@ export default function OnboardingPage() {
             Créer mon cocon
           </p>
           <p className="text-[13px] text-muted-foreground leading-[1.4]">
-            Nouveau foyer, nouvel espace partagé. Tu pourras inviter quelqu&apos;un ensuite.
+            Nouveau foyer, nouvel espace partagé. Tu pourras inviter
+            quelqu&apos;un ensuite via un code.
           </p>
         </Link>
 
-        <div className="rounded-[14px] border border-border-subtle bg-transparent px-5 py-4 flex flex-col gap-2">
-          <p className="text-[15px] font-semibold text-foreground">
-            J&apos;ai un lien d&apos;invitation
-          </p>
+        <form
+          onSubmit={handleJoin}
+          className="rounded-[14px] border border-border-subtle bg-surface px-5 py-4 flex flex-col gap-3"
+        >
+          <div className="flex items-center gap-2">
+            <KeyRound size={14} className="text-primary" />
+            <p className="text-[15px] font-semibold text-foreground">
+              J&apos;ai un code d&apos;invitation
+            </p>
+          </div>
           <p className="text-[13px] text-muted-foreground leading-[1.4]">
-            Demande à la personne qui t&apos;invite de te partager le lien
-            <code className="text-foreground"> /join/…</code> qu&apos;elle voit après avoir créé son cocon.
+            Tape le code à 6 caractères qu&apos;on t&apos;a partagé.
           </p>
-        </div>
+          <input
+            type="text"
+            value={code}
+            onChange={(e) => setCode(e.target.value.toUpperCase())}
+            placeholder="ABCD12"
+            maxLength={6}
+            autoComplete="off"
+            autoCapitalize="characters"
+            spellCheck={false}
+            disabled={joining}
+            className="rounded-[10px] border border-border bg-background px-4 py-3 text-[18px] font-display font-bold tracking-[0.2em] text-center uppercase focus:outline-none focus:border-primary focus:ring-2 focus:ring-[rgba(255,107,36,0.18)] disabled:opacity-50"
+          />
+          <button
+            type="submit"
+            disabled={joining || code.trim().length < 6}
+            className="rounded-[10px] bg-primary text-primary-foreground font-sans font-semibold text-[14px] px-4 py-2.5 shadow-[0_0_14px_rgba(255,107,36,0.35)] hover:bg-[var(--primary-hover)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {joining ? "Connexion…" : "Rejoindre le cocon"}
+          </button>
+          {joinError ? (
+            <p role="alert" className="text-[12px] text-destructive">
+              {joinError}
+            </p>
+          ) : null}
+        </form>
       </div>
     </div>
   );

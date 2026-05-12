@@ -59,7 +59,7 @@ export interface HouseholdInvitation {
 
 export interface Household {
   name: string;
-  emoji?: string; // "🏠" par défaut côté UI
+  emoji?: string; // legacy — plus modifiable depuis le sprint 5 polish
   createdAt: Timestamp;
   ownerId: string;
   memberIds: string[];
@@ -69,6 +69,21 @@ export interface Household {
   balanceEnabled?: boolean;
   /** Sprint 4 — journal du foyer. On par défaut, désactivable. */
   journalEnabled?: boolean;
+  /** Sprint 5 polish — code court alphanumérique pour rejoindre le cocon
+   *  en tapant le code (alternative au lien d'invitation UUID). 6 chars
+   *  uppercase, sans 0/O/I/L pour éviter les confusions. */
+  inviteCode?: string;
+}
+
+/** Document `invite-codes/{code}` — résolveur top-level pour code → cocon. */
+export interface InviteCode {
+  code: string;
+  householdId: string;
+  /** Pour affichage rapide à l'arrivée (le user voit le nom avant de join). */
+  householdName: string;
+  createdAt: Timestamp;
+  createdBy: string;
+  active: boolean;
 }
 
 export type HouseholdMemberRole = "owner" | "member";
