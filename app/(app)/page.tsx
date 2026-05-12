@@ -1,10 +1,10 @@
 "use client";
 
 import {
-  AlertTriangle,
   Box,
   Calendar,
   CheckSquare,
+  Eye,
   Mic,
   ShoppingBag,
   Sparkles,
@@ -441,7 +441,9 @@ export default function DashboardPage() {
             })
           : null}
 
-        {/* Tâches du jour — section "importante" (zone d'attention principale) */}
+        {/* === ORDRE PAR PRIORITÉ DESCENDANTE === */}
+
+        {/* 1. Tâches du jour (action principale) */}
         {todayTasks.length > 0 && household && user ? (
           <DashSection
             icon={CheckSquare}
@@ -466,7 +468,134 @@ export default function DashboardPage() {
           </DashSection>
         ) : null}
 
-        {/* Cette semaine */}
+        {/* 2. Agenda du jour (rendez-vous horaires fixes) */}
+        {sortedEvents.length > 0 ? (
+          <DashSection
+            icon={Calendar}
+            iconTone="info"
+            title="Agenda du jour"
+            count={sortedEvents.length}
+            href="/calendar"
+          >
+            <ul className="flex flex-col gap-1.5">
+              {sortedEvents.map((e) => {
+                const start = e.startTime.toDate();
+                const time = `${String(start.getHours()).padStart(2, "0")}:${String(start.getMinutes()).padStart(2, "0")}`;
+                return (
+                  <li key={e.id}>
+                    <Link
+                      href={`/calendar/${e.id}`}
+                      className="rounded-[10px] border border-transparent bg-[rgba(255,255,255,0.03)] px-3 py-2.5 flex items-baseline gap-3 hover:bg-[rgba(255,255,255,0.05)] transition-colors"
+                    >
+                      <span className="font-display font-semibold text-[13px] text-primary shrink-0 w-12">
+                        {time}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-[13px] font-medium truncate">
+                          {e.title}
+                        </div>
+                        {e.location ? (
+                          <div className="text-[11px] text-muted-foreground truncate">
+                            {e.location}
+                          </div>
+                        ) : null}
+                      </div>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </DashSection>
+        ) : null}
+
+        {/* 3. Stocks à renouveler (urgence pratique) */}
+        {stocksToRenew.length > 0 ? (
+          <DashSection
+            icon={Box}
+            iconTone="secondary"
+            title="Stocks à renouveler"
+            count={stocksToRenew.length}
+            href="/stocks"
+          >
+            <ul className="flex flex-col gap-1.5">
+              {stocksToRenew.slice(0, 5).map((s) => (
+                <li key={s.id}>
+                  <Link
+                    href="/stocks"
+                    className="rounded-[10px] border border-transparent bg-[rgba(255,255,255,0.03)] px-3 py-2.5 flex items-center gap-2.5 hover:bg-[rgba(255,255,255,0.05)] transition-colors"
+                  >
+                    <span className="text-[16px] leading-none shrink-0">
+                      {s.emoji ?? "📦"}
+                    </span>
+                    <span className="flex-1 text-[13px] leading-snug truncate">
+                      {s.name}
+                    </span>
+                    <span
+                      className={`text-[11px] font-semibold uppercase tracking-[0.1em] ${
+                        s.level === "empty"
+                          ? "text-[#FF6B24]"
+                          : "text-[#FFC845]"
+                      }`}
+                    >
+                      {s.level === "empty" ? "Épuisé" : "Bas"}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </DashSection>
+        ) : null}
+
+        {/* 4. Liste de courses */}
+        <DashSection
+          icon={ShoppingBag}
+          iconTone="primary"
+          title="Liste de courses"
+          count={shoppingPendingCount > 0 ? shoppingPendingCount : undefined}
+          href="/shopping"
+        >
+          <Link
+            href="/shopping"
+            className="rounded-[10px] border border-transparent bg-[rgba(255,255,255,0.03)] px-3 py-2.5 flex items-center gap-2.5 hover:bg-[rgba(255,255,255,0.05)] transition-colors"
+          >
+            <span className="text-[16px] leading-none shrink-0">🛒</span>
+            <span className="flex-1 text-[13px]">
+              {shoppingPendingCount > 0
+                ? `${shoppingPendingCount} article${shoppingPendingCount > 1 ? "s" : ""} à acheter`
+                : "Liste vide — tap pour ajouter"}
+            </span>
+          </Link>
+        </DashSection>
+
+        {/* 5. À surveiller (ex-Alertes — garanties + récurrentes demain) */}
+        {alerts.length > 0 ? (
+          <DashSection
+            icon={Eye}
+            iconTone="secondary"
+            title="À surveiller"
+            count={alerts.length}
+          >
+            <ul className="flex flex-col gap-1.5">
+              {alerts.map((a, idx) => (
+                <li key={`${a.kind}-${idx}`}>
+                  <Link
+                    href={a.href}
+                    className="rounded-[10px] border border-transparent bg-[rgba(255,255,255,0.03)] px-3 py-2.5 flex items-center gap-2.5 hover:bg-[rgba(255,255,255,0.05)] transition-colors"
+                  >
+                    <span className="text-[16px] leading-none shrink-0">
+                      {a.emoji}
+                    </span>
+                    <span className="flex-1 text-[13px] leading-snug truncate">
+                      {a.title}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </DashSection>
+        ) : null}
+
+        {/* 6. Cette semaine (tâches à venir, moins prioritaires que le jour) */}
         {weekTasks.length > 0 && household && user ? (
           <DashSection
             icon={CheckSquare}
@@ -490,113 +619,7 @@ export default function DashboardPage() {
           </DashSection>
         ) : null}
 
-        {/* Agenda du jour */}
-        {sortedEvents.length > 0 ? (
-          <DashSection
-            icon={Calendar}
-            iconTone="info"
-            title="Agenda du jour"
-            count={sortedEvents.length}
-            href="/calendar"
-          >
-            <ul className="flex flex-col gap-1.5">
-              {sortedEvents.map((e) => {
-                const start = e.startTime.toDate();
-                const time = `${String(start.getHours()).padStart(2, "0")}:${String(start.getMinutes()).padStart(2, "0")}`;
-                return (
-                  <li key={e.id}>
-                    <Link
-                      href={`/calendar/${e.id}`}
-                      className="rounded-[10px] border border-border-subtle bg-surface px-3 py-2.5 flex items-baseline gap-3 hover:bg-surface-elevated transition-colors"
-                    >
-                      <span className="font-display font-semibold text-[14px] text-primary shrink-0 w-12">
-                        {time}
-                      </span>
-                      <div className="flex-1 min-w-0">
-                        <div className="text-[14px] font-medium truncate">
-                          {e.title}
-                        </div>
-                        {e.location ? (
-                          <div className="text-[11px] text-muted-foreground truncate">
-                            {e.location}
-                          </div>
-                        ) : null}
-                      </div>
-                    </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </DashSection>
-        ) : null}
-
-        {/* Stocks à renouveler — liste détaillée */}
-        {stocksToRenew.length > 0 ? (
-          <DashSection
-            icon={Box}
-            iconTone="secondary"
-            title="Stocks à renouveler"
-            count={stocksToRenew.length}
-            href="/stocks"
-          >
-            <ul className="flex flex-col gap-1.5">
-              {stocksToRenew.slice(0, 5).map((s) => (
-                <li key={s.id}>
-                  <Link
-                    href="/stocks"
-                    className="rounded-[10px] border border-border-subtle bg-surface px-3 py-2.5 flex items-center gap-2.5 hover:bg-surface-elevated transition-colors"
-                  >
-                    <span className="text-[16px] leading-none shrink-0">
-                      {s.emoji ?? "📦"}
-                    </span>
-                    <span className="flex-1 text-[13px] leading-snug truncate">
-                      {s.name}
-                    </span>
-                    <span
-                      className={`text-[11px] font-semibold uppercase tracking-[0.1em] ${
-                        s.level === "empty"
-                          ? "text-destructive"
-                          : "text-[#FF6B24]"
-                      }`}
-                    >
-                      {s.level === "empty" ? "Épuisé" : "Bas"}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </DashSection>
-        ) : null}
-
-        {/* Alertes du foyer (garanties + récurrentes demain) */}
-        {alerts.length > 0 ? (
-          <DashSection
-            icon={AlertTriangle}
-            iconTone="destructive"
-            title="Alertes du foyer"
-            count={alerts.length}
-          >
-            <ul className="flex flex-col gap-1.5">
-              {alerts.map((a, idx) => (
-                <li key={`${a.kind}-${idx}`}>
-                  <Link
-                    href={a.href}
-                    className="rounded-[10px] border border-border-subtle bg-surface px-3 py-2.5 flex items-center gap-2.5 hover:bg-surface-elevated transition-colors"
-                  >
-                    <span className="text-[16px] leading-none shrink-0">
-                      {a.emoji}
-                    </span>
-                    <span className="flex-1 text-[13px] leading-snug truncate">
-                      {a.title}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </DashSection>
-        ) : null}
-
-        {/* Préparation en cours */}
+        {/* 7. Préparation en cours */}
         {activeRun && activeRunProgress ? (
           <DashSection
             icon={CheckSquare}
@@ -606,7 +629,7 @@ export default function DashboardPage() {
           >
             <Link
               href="/preparations"
-              className="rounded-[10px] border border-border-subtle bg-surface px-3 py-2.5 flex items-center gap-2.5 hover:bg-surface-elevated transition-colors"
+              className="rounded-[10px] border border-transparent bg-[rgba(255,255,255,0.03)] px-3 py-2.5 flex items-center gap-2.5 hover:bg-[rgba(255,255,255,0.05)] transition-colors"
             >
               <span className="text-[18px] leading-none shrink-0">
                 {activeRun.templateEmoji ?? "🗂️"}
@@ -623,29 +646,6 @@ export default function DashboardPage() {
             </Link>
           </DashSection>
         ) : null}
-
-        {/* Liste de courses */}
-        <DashSection
-          icon={ShoppingBag}
-          iconTone="primary"
-          title="Liste de courses"
-          count={
-            shoppingPendingCount > 0 ? shoppingPendingCount : undefined
-          }
-          href="/shopping"
-        >
-          <Link
-            href="/shopping"
-            className="rounded-[10px] border border-border-subtle bg-surface px-3 py-2.5 flex items-center gap-2.5 hover:bg-surface-elevated transition-colors"
-          >
-            <span className="text-[16px] leading-none shrink-0">🛒</span>
-            <span className="flex-1 text-[13px]">
-              {shoppingPendingCount > 0
-                ? `${shoppingPendingCount} article${shoppingPendingCount > 1 ? "s" : ""} à acheter`
-                : "Liste vide — tap pour ajouter"}
-            </span>
-          </Link>
-        </DashSection>
 
         {/* Score d'équilibre (opt-in) */}
         {balance && household && members.length > 0 ? (

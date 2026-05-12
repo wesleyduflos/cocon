@@ -87,19 +87,25 @@ export function TaskRow({
 
   // Tailles harmonisees avec les autres items des DashSection (px-3 py-2.5).
   const rootRadius = compact ? "rounded-[10px]" : "rounded-[12px]";
-  const rootBorder = compact ? "border-border-subtle" : "border-border";
   const checkboxPad = compact ? "pl-3 pr-1 py-2.5" : "pl-4 pr-1 py-3.5";
   const checkboxSize = compact ? "w-[18px] h-[18px]" : "w-5 h-5";
   const linkPad = compact ? "py-2.5 pr-3" : "py-3.5 pr-4";
   const titleSize = compact ? "text-[13px]" : "text-[15px]";
   const metaSize = compact ? "text-[11px]" : "text-[12px]";
   const iconSize = compact ? 12 : 13;
+  // Bordure : transparent en compact pour fondre dans la DashSection,
+  // border-border en mode standard (autres ecrans).
+  const rootBorder = compact ? "border-transparent" : "border-border";
+  // Background plus discret en compact (subtle glass sur le gradient).
+  const rootBg = compact
+    ? "bg-[rgba(255,255,255,0.03)] hover:bg-[rgba(255,255,255,0.05)]"
+    : "bg-surface hover:bg-surface-elevated";
 
   return (
     <div
-      className={`relative ${rootRadius} border bg-surface flex items-center gap-2.5 transition-colors hover:bg-surface-elevated ${
+      className={`relative ${rootRadius} border ${rootBg} flex items-center gap-2.5 transition-colors ${
         overdue
-          ? "border-l-2 border-l-destructive border-y-border border-r-border"
+          ? "border-l-2 border-l-destructive border-y-transparent border-r-transparent"
           : rootBorder
       }`}
     >
