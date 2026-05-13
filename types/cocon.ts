@@ -158,13 +158,18 @@ export interface Task {
 export type ShoppingStatus = "pending" | "bought";
 
 export type ShoppingRayon =
-  | "Frais"
-  | "Épicerie"
-  | "Hygiène"
+  | "Fruits & légumes"
   | "Boulangerie"
+  | "Viandes"
+  | "Poisson"
+  | "Produits laitiers"
+  | "Frais"
+  | "Conserves"
+  | "Épicerie"
   | "Boissons"
-  | "Animalerie"
+  | "Hygiène"
   | "Maison"
+  | "Animalerie"
   | "Autre";
 
 export interface ShoppingItem {

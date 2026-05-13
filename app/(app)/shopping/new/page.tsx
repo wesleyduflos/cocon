@@ -12,8 +12,13 @@ import { createShoppingItem } from "@/lib/firebase/firestore";
 import type { ShoppingRayon } from "@/types/cocon";
 
 const RAYONS: ShoppingRayon[] = [
-  "Frais",
+  "Fruits & légumes",
   "Boulangerie",
+  "Viandes",
+  "Poisson",
+  "Produits laitiers",
+  "Frais",
+  "Conserves",
   "Épicerie",
   "Boissons",
   "Hygiène",

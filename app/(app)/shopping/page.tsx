@@ -20,8 +20,13 @@ import {
 import type { ShoppingItem, ShoppingRayon, WithId } from "@/types/cocon";
 
 const RAYON_ORDER: ShoppingRayon[] = [
-  "Frais",
+  "Fruits & légumes",
   "Boulangerie",
+  "Viandes",
+  "Poisson",
+  "Produits laitiers",
+  "Frais",
+  "Conserves",
   "Épicerie",
   "Boissons",
   "Hygiène",
@@ -31,9 +36,14 @@ const RAYON_ORDER: ShoppingRayon[] = [
 ];
 
 const RAYON_EMOJI: Record<ShoppingRayon, string> = {
-  Frais: "❄️",
+  "Fruits & légumes": "🥬",
   Boulangerie: "🥖",
-  Épicerie: "🥫",
+  Viandes: "🥩",
+  Poisson: "🐟",
+  "Produits laitiers": "🥛",
+  Frais: "❄️",
+  Conserves: "🥫",
+  Épicerie: "🍝",
   Boissons: "🥤",
   Hygiène: "🧴",
   Maison: "🧹",
@@ -55,16 +65,27 @@ export default function ShoppingPage() {
   );
   const pendingCount = pending.length;
 
-  // Groupage par rayon
+  // Groupage par rayon (inclut les coches : ils restent visibles, tries en bas
+  // de leur rayon). Tri : pending d'abord (par addedAt desc), bought en bas.
   const byRayon = useMemo(() => {
     const map = new Map<ShoppingRayon, WithId<ShoppingItem>[]>();
-    for (const item of pending) {
+    for (const item of items) {
       const list = map.get(item.rayon) ?? [];
       list.push(item);
       map.set(item.rayon, list);
     }
+    // Tri interne : pending d'abord, bought ensuite
+    for (const list of map.values()) {
+      list.sort((a, b) => {
+        if (a.status !== b.status) return a.status === "pending" ? -1 : 1;
+        // À status égal, plus récent en premier
+        const aMs = a.addedAt?.toMillis?.() ?? 0;
+        const bMs = b.addedAt?.toMillis?.() ?? 0;
+        return bMs - aMs;
+      });
+    }
     return map;
-  }, [pending]);
+  }, [items]);
 
   // Set des rayons COLLAPSED. Tous les rayons sont expanded par defaut ;
   // l'user en met explicitement certains dans le set pour les replier.
@@ -218,7 +239,7 @@ export default function ShoppingPage() {
         {/* Par rayon */}
         {loading ? (
           <p className="text-[13px] text-muted-foreground">Chargement…</p>
-        ) : pendingCount === 0 ? (
+        ) : items.length === 0 ? (
           <div className="flex flex-col items-center gap-4 py-12 text-center">
             <div className="text-[40px] leading-none">🛒</div>
             <h2 className="font-display text-[22px] font-semibold leading-[1.1]">
@@ -254,7 +275,10 @@ export default function ShoppingPage() {
                         <span className="text-[18px]">{RAYON_EMOJI[r]}</span>
                         <span className="text-[14px] font-medium">{r}</span>
                         <span className="text-[12px] text-muted-foreground">
-                          · {list.length}
+                          · {list.filter((i) => i.status === "pending").length}
+                          {list.some((i) => i.status === "bought")
+                            ? `/${list.length}`
+                            : ""}
                         </span>
                       </span>
                       {open ? (
@@ -265,25 +289,46 @@ export default function ShoppingPage() {
                     </button>
                     {open ? (
                       <ul className="border-t border-border-subtle">
-                        {list.map((item) => (
+                        {list.map((item) => {
+                          const isBought = item.status === "bought";
+                          return (
                           <li
                             key={item.id}
-                            className="flex items-center gap-3 px-4 py-2.5 border-b border-border-subtle last:border-b-0"
+                            className={`flex items-center gap-3 px-4 py-2.5 border-b border-border-subtle last:border-b-0 ${
+                              isBought ? "opacity-50" : ""
+                            }`}
                           >
                             <button
                               type="button"
                               onClick={() => handleCheck(item)}
-                              aria-label="Cocher"
-                              className="w-5 h-5 rounded-[6px] border-[1.5px] border-[#5C3D2C] flex items-center justify-center hover:border-primary shrink-0"
-                            />
+                              aria-label={isBought ? "Decocher" : "Cocher"}
+                              aria-pressed={isBought}
+                              className={`w-5 h-5 rounded-[6px] border-[1.5px] flex items-center justify-center shrink-0 transition-all ${
+                                isBought
+                                  ? "bg-secondary border-secondary"
+                                  : "border-[#5C3D2C] hover:border-primary"
+                              }`}
+                            >
+                              {isBought ? (
+                                <span className="text-[11px] text-secondary-foreground">
+                                  ✓
+                                </span>
+                              ) : null}
+                            </button>
                             <Link
-                              href={`/shopping/${item.id}`}
+                              href={`/shopping/${item.id}/edit`}
                               className="flex-1 flex items-center gap-2 min-w-0"
                             >
                               {item.emoji ? (
                                 <span className="text-[16px]">{item.emoji}</span>
                               ) : null}
-                              <span className="text-[14px] truncate">
+                              <span
+                                className={`text-[14px] truncate ${
+                                  isBought
+                                    ? "line-through text-muted-foreground"
+                                    : ""
+                                }`}
+                              >
                                 {item.name}
                                 {item.quantity && item.quantity > 1 ? (
                                   <span className="text-muted-foreground ml-1">
@@ -310,7 +355,8 @@ export default function ShoppingPage() {
                               ) : null}
                             </Link>
                           </li>
-                        ))}
+                          );
+                        })}
                       </ul>
                     ) : null}
                   </article>

@@ -15,8 +15,13 @@ import {
 import type { ShoppingItem, ShoppingRayon, WithId } from "@/types/cocon";
 
 const RAYONS: ShoppingRayon[] = [
-  "Frais",
+  "Fruits & légumes",
   "Boulangerie",
+  "Viandes",
+  "Poisson",
+  "Produits laitiers",
+  "Frais",
+  "Conserves",
   "Épicerie",
   "Boissons",
   "Hygiène",

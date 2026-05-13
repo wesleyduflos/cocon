@@ -13,7 +13,11 @@ import { HouseholdProvider, useCurrentHousehold } from "@/hooks/use-household";
 // footer ne soit pas visible là — l'utilisateur a déjà ArrowLeft pour
 // revenir, pas besoin de la nav principale).
 function hideBottomNav(pathname: string): boolean {
-  return pathname === "/settings" || pathname.startsWith("/settings/");
+  return (
+    pathname === "/settings" ||
+    pathname.startsWith("/settings/") ||
+    pathname === "/shopping/market"
+  );
 }
 
 function AppLayoutInner({ children }: { children: ReactNode }) {
