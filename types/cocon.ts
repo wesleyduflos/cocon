@@ -189,6 +189,8 @@ export interface ShoppingHistoryEntry {
   lastBoughtAt: Timestamp;
   /** Nombre de fois acheté depuis la création de l'entrée. */
   buyCount: number;
+  /** Sprint 5 polish — épinglé en haut de l'historique pour accès rapide. */
+  favorite?: boolean;
 }
 
 export interface ShoppingItem {

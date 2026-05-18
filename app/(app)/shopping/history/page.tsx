@@ -1,8 +1,14 @@
 "use client";
 
-import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Pencil,
+  Plus,
+  Star,
+  Trash2,
+} from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { useToast } from "@/components/shared/toast-provider";
 import { useAuth } from "@/hooks/use-auth";
@@ -12,20 +18,9 @@ import {
   addFromShoppingHistory,
   clearShoppingHistory,
   deleteShoppingHistoryEntry,
+  toggleShoppingHistoryFavorite,
 } from "@/lib/firebase/firestore";
-
-/* =========================================================================
-   /shopping/history
-
-   Historique PERSISTANT des articles achetés (sous-collection shopping-
-   history, mise à jour à chaque check). Survit aux nettoyages de la liste
-   active : l'user peut nettoyer ses courses en confiance, l'historique
-   reste pour reconstruire une nouvelle liste.
-
-   Pour chaque entrée :
-   - "+" : crée un nouvel item shopping pending avec name/emoji/rayon/unit
-   - 🗑️ : supprime l'entrée de l'historique
-   ========================================================================= */
+import type { ShoppingHistoryEntry, WithId } from "@/types/cocon";
 
 export default function ShoppingHistoryPage() {
   const { user } = useAuth();
@@ -34,10 +29,17 @@ export default function ShoppingHistoryPage() {
   const { showToast } = useToast();
   const [clearing, setClearing] = useState(false);
 
-  async function handleReadd(entryId: string) {
+  const favorites = useMemo(
+    () => entries.filter((e) => e.favorite === true),
+    [entries],
+  );
+  const rest = useMemo(
+    () => entries.filter((e) => e.favorite !== true),
+    [entries],
+  );
+
+  async function handleReadd(entry: WithId<ShoppingHistoryEntry>) {
     if (!household || !user) return;
-    const entry = entries.find((e) => e.id === entryId);
-    if (!entry) return;
     await addFromShoppingHistory(household.id, entry, user.uid);
     showToast({ message: `${entry.emoji ?? "🛒"} ${entry.name} ajouté` });
   }
@@ -45,6 +47,15 @@ export default function ShoppingHistoryPage() {
   async function handleDelete(entryId: string) {
     if (!household) return;
     await deleteShoppingHistoryEntry(household.id, entryId);
+  }
+
+  async function handleToggleFavorite(entry: WithId<ShoppingHistoryEntry>) {
+    if (!household) return;
+    await toggleShoppingHistoryFavorite(
+      household.id,
+      entry.id,
+      !(entry.favorite === true),
+    );
   }
 
   async function handleClearAll() {
@@ -101,8 +112,8 @@ export default function ShoppingHistoryPage() {
         </header>
 
         <p className="text-[12px] text-muted-foreground leading-snug">
-          Tout ce que tu as déjà acheté. Tape sur <strong>+</strong> pour
-          re-ajouter à la liste. L&apos;historique survit aux nettoyages.
+          Tape <strong>+</strong> pour re-ajouter à la liste,{" "}
+          <strong>⭐</strong> pour mettre en favori (épinglé en haut).
         </p>
 
         {loading ? (
@@ -125,58 +136,133 @@ export default function ShoppingHistoryPage() {
             </Link>
           </div>
         ) : (
-          <ul className="flex flex-col gap-2">
-            {entries.map((entry) => {
-              const lastMs = entry.lastBoughtAt?.toMillis?.() ?? 0;
-              const lastLabel =
-                lastMs > 0
-                  ? new Date(lastMs).toLocaleDateString("fr-FR", {
-                      day: "numeric",
-                      month: "short",
-                    })
-                  : null;
-              return (
-                <li
-                  key={entry.id}
-                  className="rounded-[12px] border border-border-subtle bg-surface px-4 py-3 flex items-center gap-3"
-                >
-                  {entry.emoji ? (
-                    <span className="text-[18px] shrink-0">{entry.emoji}</span>
-                  ) : null}
-                  <div className="flex-1 flex flex-col min-w-0">
-                    <span className="text-[14px] font-medium truncate">
-                      {entry.name}
-                    </span>
-                    <span className="text-[11px] text-muted-foreground">
-                      {entry.rayon}
-                      {lastLabel ? ` · dernier ${lastLabel}` : ""}
-                      {entry.buyCount > 1 ? ` · ×${entry.buyCount}` : ""}
-                    </span>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleReadd(entry.id)}
-                    aria-label={`Ajouter ${entry.name} à la liste`}
-                    title="Ajouter à la liste"
-                    className="w-8 h-8 rounded-[8px] flex items-center justify-center bg-primary/10 text-primary hover:bg-primary/20 transition-colors shrink-0"
-                  >
-                    <Plus size={16} strokeWidth={2.4} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(entry.id)}
-                    aria-label={`Supprimer ${entry.name} de l'historique`}
-                    title="Retirer de l'historique"
-                    className="w-8 h-8 rounded-[8px] flex items-center justify-center text-foreground-faint hover:bg-destructive/20 hover:text-destructive transition-colors shrink-0"
-                  >
-                    <Trash2 size={14} />
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+          <>
+            {favorites.length > 0 ? (
+              <section className="flex flex-col gap-2">
+                <h2 className="text-[0.6875rem] uppercase tracking-[0.12em] text-muted-foreground flex items-center gap-1.5">
+                  <Star
+                    size={11}
+                    fill="var(--secondary)"
+                    className="text-[var(--secondary)]"
+                  />
+                  Favoris · {favorites.length}
+                </h2>
+                <ul className="flex flex-col gap-2">
+                  {favorites.map((entry) => (
+                    <HistoryRow
+                      key={entry.id}
+                      entry={entry}
+                      onReadd={handleReadd}
+                      onDelete={handleDelete}
+                      onToggleFavorite={handleToggleFavorite}
+                    />
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+
+            {rest.length > 0 ? (
+              <section className="flex flex-col gap-2">
+                <h2 className="text-[0.6875rem] uppercase tracking-[0.12em] text-muted-foreground">
+                  {favorites.length > 0 ? "Tous les autres" : "Historique"} ·{" "}
+                  {rest.length}
+                </h2>
+                <ul className="flex flex-col gap-2">
+                  {rest.map((entry) => (
+                    <HistoryRow
+                      key={entry.id}
+                      entry={entry}
+                      onReadd={handleReadd}
+                      onDelete={handleDelete}
+                      onToggleFavorite={handleToggleFavorite}
+                    />
+                  ))}
+                </ul>
+              </section>
+            ) : null}
+          </>
         )}
       </div>
     </main>
+  );
+}
+
+function HistoryRow({
+  entry,
+  onReadd,
+  onDelete,
+  onToggleFavorite,
+}: {
+  entry: WithId<ShoppingHistoryEntry>;
+  onReadd: (entry: WithId<ShoppingHistoryEntry>) => void;
+  onDelete: (id: string) => void;
+  onToggleFavorite: (entry: WithId<ShoppingHistoryEntry>) => void;
+}) {
+  const isFav = entry.favorite === true;
+  const lastMs = entry.lastBoughtAt?.toMillis?.() ?? 0;
+  const lastLabel =
+    lastMs > 0
+      ? new Date(lastMs).toLocaleDateString("fr-FR", {
+          day: "numeric",
+          month: "short",
+        })
+      : null;
+  return (
+    <li className="rounded-[12px] border border-border-subtle bg-surface px-3 py-2.5 flex items-center gap-2.5">
+      <button
+        type="button"
+        onClick={() => onToggleFavorite(entry)}
+        aria-label={isFav ? "Retirer des favoris" : "Mettre en favori"}
+        title={isFav ? "Retirer des favoris" : "Mettre en favori"}
+        className={`w-8 h-8 rounded-[8px] flex items-center justify-center transition-colors shrink-0 ${
+          isFav
+            ? "text-[var(--secondary)] hover:bg-[var(--secondary)]/10"
+            : "text-foreground-faint hover:bg-surface-elevated"
+        }`}
+      >
+        <Star
+          size={14}
+          fill={isFav ? "var(--secondary)" : "none"}
+          strokeWidth={2}
+        />
+      </button>
+      {entry.emoji ? (
+        <span className="text-[18px] shrink-0">{entry.emoji}</span>
+      ) : null}
+      <div className="flex-1 flex flex-col min-w-0">
+        <span className="text-[14px] font-medium truncate">{entry.name}</span>
+        <span className="text-[11px] text-muted-foreground truncate">
+          {entry.rayon}
+          {lastLabel ? ` · ${lastLabel}` : ""}
+          {entry.buyCount > 1 ? ` · ×${entry.buyCount}` : ""}
+        </span>
+      </div>
+      <Link
+        href={`/shopping/history/${entry.id}/edit`}
+        aria-label={`Modifier ${entry.name}`}
+        title="Modifier"
+        className="w-8 h-8 rounded-[8px] flex items-center justify-center text-foreground-faint hover:bg-surface-elevated transition-colors shrink-0"
+      >
+        <Pencil size={14} />
+      </Link>
+      <button
+        type="button"
+        onClick={() => onReadd(entry)}
+        aria-label={`Ajouter ${entry.name} à la liste`}
+        title="Ajouter à la liste"
+        className="w-8 h-8 rounded-[8px] flex items-center justify-center bg-primary/10 text-primary hover:bg-primary/20 transition-colors shrink-0"
+      >
+        <Plus size={16} strokeWidth={2.4} />
+      </button>
+      <button
+        type="button"
+        onClick={() => onDelete(entry.id)}
+        aria-label={`Supprimer ${entry.name} de l'historique`}
+        title="Retirer de l'historique"
+        className="w-8 h-8 rounded-[8px] flex items-center justify-center text-foreground-faint hover:bg-destructive/20 hover:text-destructive transition-colors shrink-0"
+      >
+        <Trash2 size={14} />
+      </button>
+    </li>
   );
 }

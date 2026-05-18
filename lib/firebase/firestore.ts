@@ -999,6 +999,34 @@ export async function deleteShoppingHistoryEntry(
   await deleteDoc(shoppingHistoryDoc(householdId, entryId));
 }
 
+/**
+ * Bascule le statut favori d'une entrée d'historique (épinglée en haut).
+ */
+export async function toggleShoppingHistoryFavorite(
+  householdId: string,
+  entryId: string,
+  favorite: boolean,
+): Promise<void> {
+  await updateDoc(shoppingHistoryDoc(householdId, entryId), {
+    favorite,
+  });
+}
+
+/**
+ * Met à jour les champs modifiables d'une entrée d'historique.
+ * Note : modifier rayon ou name change la clé "logique" mais on garde
+ * le même doc id (immutable) pour ne pas casser les références.
+ */
+export async function updateShoppingHistoryEntry(
+  householdId: string,
+  entryId: string,
+  patch: Partial<
+    Pick<ShoppingHistoryEntry, "name" | "emoji" | "rayon" | "unit">
+  >,
+): Promise<void> {
+  await updateDoc(shoppingHistoryDoc(householdId, entryId), patch);
+}
+
 export async function clearShoppingHistory(
   householdId: string,
 ): Promise<number> {
