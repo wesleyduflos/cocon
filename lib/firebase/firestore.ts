@@ -40,6 +40,7 @@ import {
   type MemoryEntry,
   type MemoryEntryType,
   type QuickAddItem,
+  type ShoppingHistoryEntry,
   type ShoppingItem,
   type ShoppingRayon,
   type StockItem,
@@ -80,6 +81,8 @@ export const invitationConverter = makeConverter<Invitation>();
 export const inviteCodeConverter = makeConverter<InviteCode>();
 export const calendarEventConverter = makeConverter<CalendarEvent>();
 export const shoppingItemConverter = makeConverter<ShoppingItem>();
+export const shoppingHistoryConverter =
+  makeConverter<ShoppingHistoryEntry>();
 export const quickAddItemConverter = makeConverter<QuickAddItem>();
 export const attachmentConverter = makeConverter<Attachment>();
 export const stockItemConverter = makeConverter<StockItem>();
@@ -215,6 +218,51 @@ export function shoppingItemDoc(
     "shopping-items",
     itemId,
   ).withConverter(shoppingItemConverter);
+}
+
+export function shoppingHistoryCollection(
+  householdId: string,
+): CollectionReference<ShoppingHistoryEntry> {
+  return collection(
+    db,
+    "households",
+    householdId,
+    "shopping-history",
+  ).withConverter(shoppingHistoryConverter);
+}
+
+export function shoppingHistoryDoc(
+  householdId: string,
+  entryId: string,
+): DocumentReference<ShoppingHistoryEntry> {
+  return doc(
+    db,
+    "households",
+    householdId,
+    "shopping-history",
+    entryId,
+  ).withConverter(shoppingHistoryConverter);
+}
+
+/**
+ * Normalise un nom d'article pour servir de partie de clé d'historique.
+ * Lowercase + strip accents + remplace non-alphanum par "_".
+ */
+export function shoppingHistoryKey(rayon: string, name: string): string {
+  const slug = name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  // Le rayon est utilisé comme préfixe pour qu'un même nom dans 2 rayons
+  // soit traité comme 2 entrées d'historique distinctes.
+  const rayonSlug = rayon
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "_");
+  return `${rayonSlug}__${slug}`;
 }
 
 export function quickAddItemsCollection(
@@ -822,18 +870,33 @@ export async function checkShoppingItem(
     boughtBy: userId,
   });
 
-  // 2) Si l'item est lié à un stock, repasser ce stock à 'full'.
-  //    On lit le doc après l'update pour récupérer stockItemId (l'écriture
-  //    précédente est déjà committée donc on a la donnée à jour).
+  // 2) On lit le doc à jour pour les liens (stock + historique).
   const snap = await getDoc(shoppingItemDoc(householdId, itemId));
-  const stockItemId = snap.data()?.stockItemId;
-  if (stockItemId) {
+  const data = snap.data();
+  if (!data) return;
+
+  // 3) Si l'item est lié à un stock, repasser ce stock à 'full'.
+  if (data.stockItemId) {
     try {
-      await updateStockLevel(householdId, stockItemId, "full", userId);
+      await updateStockLevel(householdId, data.stockItemId, "full", userId);
     } catch {
       // Soft-fail : si le stock a été supprimé entre-temps, on n'empêche
       // pas la complétion du shopping-item.
     }
+  }
+
+  // 4) Met à jour l'historique persistant (survit aux nettoyages de la
+  //    liste active — Wesley peut re-générer une liste rapidement).
+  try {
+    await upsertShoppingHistory(householdId, {
+      name: data.name,
+      emoji: data.emoji,
+      rayon: data.rayon,
+      unit: data.unit,
+    });
+  } catch {
+    // Soft-fail : si l'historique plante (rules pas déployées par ex),
+    // on ne bloque pas l'achat.
   }
 }
 
@@ -858,6 +921,8 @@ export async function deleteShoppingItem(
 /**
  * Supprime tous les items "bought" de la liste de courses du foyer.
  * Utilisé par le bouton "Nettoyer la liste" sur /shopping.
+ * L'historique persistant (sous-collection shopping-history) n'est PAS
+ * affecté — il survit aux nettoyages.
  * Retourne le nombre de docs supprimés.
  */
 export async function clearBoughtShoppingItems(
@@ -866,6 +931,78 @@ export async function clearBoughtShoppingItems(
   const snap = await getDocs(
     query(shoppingItemsCollection(householdId), where("status", "==", "bought")),
   );
+  await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
+  return snap.size;
+}
+
+/* =========================================================================
+   Historique des articles achetés (sprint 5 polish)
+
+   - upsertShoppingHistory : appelé par checkShoppingItem après un achat.
+     Crée ou met à jour le doc avec nameKey/rayon, incrémente buyCount,
+     met à jour lastBoughtAt.
+   - addFromShoppingHistory : à partir d'une entrée d'historique, crée un
+     nouvel item shopping (status pending) prêt à racheter.
+   - deleteShoppingHistoryEntry : supprime une entrée d'historique.
+   ========================================================================= */
+
+export async function upsertShoppingHistory(
+  householdId: string,
+  item: Pick<ShoppingItem, "name" | "emoji" | "rayon" | "unit">,
+): Promise<void> {
+  const key = shoppingHistoryKey(item.rayon, item.name);
+  const ref = shoppingHistoryDoc(householdId, key);
+  const now = FirestoreTimestamp.now();
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (snap.exists()) {
+      tx.update(ref, {
+        name: item.name,
+        emoji: item.emoji,
+        unit: item.unit,
+        lastBoughtAt: now,
+        buyCount: (snap.data().buyCount ?? 0) + 1,
+      });
+    } else {
+      tx.set(ref, {
+        name: item.name,
+        nameKey: key,
+        emoji: item.emoji,
+        rayon: item.rayon,
+        unit: item.unit,
+        lastBoughtAt: now,
+        buyCount: 1,
+      });
+    }
+  });
+}
+
+export async function addFromShoppingHistory(
+  householdId: string,
+  entry: ShoppingHistoryEntry,
+  addedBy: string,
+): Promise<string> {
+  return createShoppingItem(householdId, {
+    name: entry.name,
+    emoji: entry.emoji,
+    rayon: entry.rayon,
+    unit: entry.unit,
+    addedBy,
+    fromQuickAdd: false,
+  });
+}
+
+export async function deleteShoppingHistoryEntry(
+  householdId: string,
+  entryId: string,
+): Promise<void> {
+  await deleteDoc(shoppingHistoryDoc(householdId, entryId));
+}
+
+export async function clearShoppingHistory(
+  householdId: string,
+): Promise<number> {
+  const snap = await getDocs(shoppingHistoryCollection(householdId));
   await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
   return snap.size;
 }

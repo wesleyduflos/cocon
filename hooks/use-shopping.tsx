@@ -5,9 +5,15 @@ import { useEffect, useState } from "react";
 
 import {
   quickAddItemsCollection,
+  shoppingHistoryCollection,
   shoppingItemsCollection,
 } from "@/lib/firebase/firestore";
-import type { QuickAddItem, ShoppingItem, WithId } from "@/types/cocon";
+import type {
+  QuickAddItem,
+  ShoppingHistoryEntry,
+  ShoppingItem,
+  WithId,
+} from "@/types/cocon";
 
 interface ShoppingItemsState {
   items: WithId<ShoppingItem>[];
@@ -46,6 +52,43 @@ export function useShoppingItems(
 interface QuickAddItemsState {
   items: WithId<QuickAddItem>[];
   loading: boolean;
+}
+
+interface ShoppingHistoryState {
+  entries: WithId<ShoppingHistoryEntry>[];
+  loading: boolean;
+}
+
+export function useShoppingHistory(
+  householdId: string | undefined,
+): ShoppingHistoryState {
+  const [state, setState] = useState<ShoppingHistoryState>({
+    entries: [],
+    loading: true,
+  });
+
+  useEffect(() => {
+    if (!householdId) {
+      setState({ entries: [], loading: false });
+      return;
+    }
+    const unsubscribe = onSnapshot(
+      query(
+        shoppingHistoryCollection(householdId),
+        orderBy("lastBoughtAt", "desc"),
+      ),
+      (snap) => {
+        setState({
+          entries: snap.docs.map((d) => ({ ...d.data(), id: d.id })),
+          loading: false,
+        });
+      },
+      () => setState({ entries: [], loading: false }),
+    );
+    return unsubscribe;
+  }, [householdId]);
+
+  return state;
 }
 
 export function useQuickAddItems(

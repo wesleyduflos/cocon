@@ -172,6 +172,25 @@ export type ShoppingRayon =
   | "Animalerie"
   | "Autre";
 
+/**
+ * Sprint 5 polish — historique persistant des articles achetés.
+ * Un doc par paire unique (rayon, nameKey). Mis à jour à chaque check d'un
+ * shopping-item. Survit aux nettoyages de la liste active.
+ */
+export interface ShoppingHistoryEntry {
+  /** Nom affiché (peut différer du nameKey en casse / accents). */
+  name: string;
+  /** Clé normalisée (lowercase sans accents) — sert d'id du doc avec rayon. */
+  nameKey: string;
+  emoji?: string;
+  rayon: ShoppingRayon;
+  unit?: string;
+  /** Dernière fois où l'article a été coché (acheté). */
+  lastBoughtAt: Timestamp;
+  /** Nombre de fois acheté depuis la création de l'entrée. */
+  buyCount: number;
+}
+
 export interface ShoppingItem {
   name: string;
   emoji?: string;
