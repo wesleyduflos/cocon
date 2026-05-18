@@ -22,13 +22,22 @@ export default function PreparationsPage() {
               Préparations
             </h1>
           </div>
-          <Link
-            href="/tasks"
-            aria-label="Voir les tâches"
-            className="text-[12px] text-muted-foreground hover:text-foreground"
-          >
-            Mes tâches →
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/tasks"
+              aria-label="Voir les tâches"
+              className="text-[12px] text-muted-foreground hover:text-foreground"
+            >
+              Mes tâches →
+            </Link>
+            <Link
+              href="/preparations/new"
+              aria-label="Créer une préparation"
+              className="w-10 h-10 rounded-[10px] bg-primary text-primary-foreground flex items-center justify-center shadow-[0_0_14px_rgba(255,107,36,0.45)] hover:bg-[var(--primary-hover)] transition-colors"
+            >
+              <Plus size={20} strokeWidth={2.4} />
+            </Link>
+          </div>
         </header>
 
         <p className="text-[14px] text-muted-foreground leading-[1.5]">

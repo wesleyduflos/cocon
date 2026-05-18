@@ -250,6 +250,20 @@ export default function TaskDetailPage() {
                 </span>
               </div>
             ) : null}
+            {task.createdAt ? (
+              <div className="flex justify-between gap-3">
+                <span className="text-[12px] text-muted-foreground">
+                  Ajoutée le
+                </span>
+                <span className="text-[13px] text-foreground font-medium">
+                  {task.createdAt.toDate().toLocaleDateString("fr-FR", {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  })}
+                </span>
+              </div>
+            ) : null}
             <div className="flex justify-between gap-3">
               <span className="text-[12px] text-muted-foreground">Statut</span>
               <span

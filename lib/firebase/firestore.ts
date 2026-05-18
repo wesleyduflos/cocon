@@ -855,6 +855,21 @@ export async function deleteShoppingItem(
   await deleteDoc(shoppingItemDoc(householdId, itemId));
 }
 
+/**
+ * Supprime tous les items "bought" de la liste de courses du foyer.
+ * Utilisé par le bouton "Nettoyer la liste" sur /shopping.
+ * Retourne le nombre de docs supprimés.
+ */
+export async function clearBoughtShoppingItems(
+  householdId: string,
+): Promise<number> {
+  const snap = await getDocs(
+    query(shoppingItemsCollection(householdId), where("status", "==", "bought")),
+  );
+  await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
+  return snap.size;
+}
+
 export async function updateShoppingItemNotes(
   householdId: string,
   itemId: string,
@@ -1273,6 +1288,44 @@ const DEFAULT_CHECKLIST_TEMPLATES: SeedTemplate[] = [
  * Idempotent : retourne 0 si la collection contient déjà des templates,
  * sauf si `force=true` qui supprime tout et reseed.
  */
+/**
+ * Crée un template de préparation custom avec une liste de tâches.
+ * Sprint 5 polish — Wesley a demandé la création depuis l'UI.
+ */
+export interface CreateChecklistTemplateInput {
+  householdId: string;
+  name: string;
+  emoji?: string;
+  description?: string;
+  triggers?: Array<{ keyword: string; daysBefore: number }>;
+  /** Liste des titres de tâches dans l'ordre. */
+  items: string[];
+}
+
+export async function createChecklistTemplate(
+  input: CreateChecklistTemplateInput,
+): Promise<string> {
+  const now = serverTimestamp() as unknown as Timestamp;
+  const tRef = await addDoc(checklistTemplatesCollection(input.householdId), {
+    name: input.name,
+    emoji: input.emoji ?? "📋",
+    description: input.description,
+    triggers: input.triggers ?? [],
+    isSeeded: false,
+    createdAt: now,
+    updatedAt: now,
+  });
+  await Promise.all(
+    input.items.map((title, idx) =>
+      addDoc(
+        checklistTemplateItemsCollection(input.householdId, tRef.id),
+        { position: idx, title },
+      ),
+    ),
+  );
+  return tRef.id;
+}
+
 export async function seedChecklistTemplates(
   householdId: string,
   options: { force?: boolean } = {},

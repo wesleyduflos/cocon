@@ -27,7 +27,6 @@ export type AlertKind =
   | "stock-low"
   | "stock-empty"
   | "prep-in-progress"
-  | "warranty-expiring"
   | "tomorrow-recurring";
 
 export interface DashboardAlert {
@@ -62,36 +61,20 @@ export function computeDashboardAlerts({
 }: ComputeInput): DashboardAlert[] {
   const alerts: DashboardAlert[] = [];
 
-  // Note sprint 5 polish : on n'ajoute plus les stocks (low/empty) ni les
-  // préparations en cours ici car ils ont leur propre DashCard sur le
-  // dashboard. La section "Alertes" reste pour ce qui n'a pas de card
-  // dédiée : garanties qui expirent + tâches récurrentes demain.
+  // Note sprint 5 polish :
+  // - Plus de stocks (low/empty) ni préparations en cours ici (DashCard
+  //   dédiées sur le dashboard).
+  // - Plus de garanties qui expirent : le type "warranty" a été retiré
+  //   de MemoryEntryType. Les entries legacy avec type=warranty existent
+  //   peut-être encore en DB mais ne sont plus matchées par le typage TS.
+  // → Reste : tâches récurrentes prévues demain.
 
-  // 1) Garanties qui expirent dans < 30 jours
-  // Convention : on stocke la date d'expiration dans structuredData.expiresAt
-  // (string ISO ou yyyy-mm-dd, voir /memory/new flow).
-  for (const e of memoryEntries) {
-    if (e.type !== "warranty") continue;
-    const expRaw = e.structuredData?.expiresAt;
-    if (typeof expRaw !== "string" || !expRaw) continue;
-    const exp = new Date(expRaw);
-    if (Number.isNaN(exp.getTime())) continue;
-    const daysUntil = Math.floor((exp.getTime() - now.getTime()) / ONE_DAY_MS);
-    if (daysUntil < 0) continue; // déjà expirée, on ne notifie pas (trop tard)
-    if (daysUntil > 30) continue;
-    alerts.push({
-      kind: "warranty-expiring",
-      title:
-        daysUntil <= 1
-          ? `Garantie « ${e.title} » expire ${daysUntil === 0 ? "aujourd'hui" : "demain"}`
-          : `Garantie « ${e.title} » expire dans ${daysUntil}j`,
-      emoji: e.emoji ?? "📜",
-      href: `/memory/${e.id}`,
-      weight: daysUntil <= 7 ? 80 : 40,
-    });
-  }
+  // Récupère les anciennes garanties legacy via un cast (entries DB qui
+  // peuvent encore avoir type="warranty" mais le type TS ne le reconnaît
+  // plus). On ne les notifie plus.
+  void memoryEntries;
 
-  // 2) Tâches récurrentes prévues demain (utile pour anticiper le soir)
+  // 1) Tâches récurrentes prévues demain (utile pour anticiper le soir)
   const startOfTomorrow = new Date(
     now.getFullYear(),
     now.getMonth(),

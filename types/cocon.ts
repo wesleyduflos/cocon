@@ -264,13 +264,15 @@ export interface ChecklistRun {
 
 // ---------- Memory entry ----------
 
-export type MemoryEntryType =
-  | "code"
-  | "object"
-  | "contact"
-  | "manual"
-  | "warranty"
-  | "note";
+export type MemoryEntryType = "code" | "object" | "note";
+
+/**
+ * Legacy types retirés en sprint 5 polish ("contact", "manual", "warranty").
+ * Les entries existantes avec ces types sont remappées en "note" côté UI
+ * (sans migration de DB — le filtrage par type ne les retrouve plus dans
+ *  les anciennes catégories mais elles restent accessibles via recherche).
+ */
+export type LegacyMemoryEntryType = "contact" | "manual" | "warranty";
 
 export interface MemoryEntry {
   type: MemoryEntryType;

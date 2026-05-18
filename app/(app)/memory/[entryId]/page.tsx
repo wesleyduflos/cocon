@@ -19,13 +19,16 @@ import {
 } from "@/lib/auth/passkey";
 import type { MemoryEntry, MemoryEntryType, WithId } from "@/types/cocon";
 
-const TYPE_LABEL: Record<MemoryEntryType, string> = {
+// Record élargi pour supporter les anciens types (contact/manual/warranty)
+// sur les entries historiques. Cf sprint 5 polish : ces 3 types sont
+// retirés du picker mais les data existantes restent affichables.
+const TYPE_LABEL: Record<string, string> = {
   code: "Code",
   object: "Objet",
+  note: "Note",
   contact: "Contact",
   manual: "Manuel",
   warranty: "Garantie",
-  note: "Note",
 };
 
 function maskValue(value: string): string {

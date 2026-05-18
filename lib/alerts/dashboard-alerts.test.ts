@@ -120,84 +120,23 @@ describe("computeDashboardAlerts", () => {
     expect(result).toEqual([]);
   });
 
-  it("garantie qui expire bientôt apparaît", () => {
-    // 12 jours pleins après now (10h local 12 mai → 10h local 24 mai)
-    const exp = new Date(2026, 4, 24, 10, 0, 0);
+  it("garanties (legacy 'warranty') ignorées — type retiré sprint 5 polish", () => {
     const result = computeDashboardAlerts({
       stocks: [],
       runs: [],
       memoryEntries: [
         memory({
           id: "m1",
-          type: "warranty",
+          // Cast pour simuler une entry legacy en DB.
+          type: "warranty" as unknown as "note",
           title: "Frigo Samsung",
-          structuredData: { expiresAt: exp.toISOString() },
-        }),
-      ],
-      tasks: [],
-      now,
-    });
-    expect(result.length).toBe(1);
-    expect(result[0].title).toContain("Frigo Samsung");
-    expect(result[0].title).toMatch(/12j/);
-  });
-
-  it("garantie expirée ignorée", () => {
-    const result = computeDashboardAlerts({
-      stocks: [],
-      runs: [],
-      memoryEntries: [
-        memory({
-          id: "m1",
-          type: "warranty",
-          structuredData: { expiresAt: "2026-04-01" }, // déjà passée
+          structuredData: { expiresAt: "2026-05-15" },
         }),
       ],
       tasks: [],
       now,
     });
     expect(result).toEqual([]);
-  });
-
-  it("garantie > 30j ignorée", () => {
-    const result = computeDashboardAlerts({
-      stocks: [],
-      runs: [],
-      memoryEntries: [
-        memory({
-          id: "m1",
-          type: "warranty",
-          structuredData: { expiresAt: "2026-07-01" }, // > 30j
-        }),
-      ],
-      tasks: [],
-      now,
-    });
-    expect(result).toEqual([]);
-  });
-
-  it("garantie ≤ 7j poids plus fort que > 7j", () => {
-    const result = computeDashboardAlerts({
-      stocks: [],
-      runs: [],
-      memoryEntries: [
-        memory({
-          id: "soon",
-          type: "warranty",
-          title: "Bientôt",
-          structuredData: { expiresAt: "2026-05-15" }, // 3j
-        }),
-        memory({
-          id: "late",
-          type: "warranty",
-          title: "Plus tard",
-          structuredData: { expiresAt: "2026-06-08" }, // 27j
-        }),
-      ],
-      tasks: [],
-      now,
-    });
-    expect(result[0].title).toContain("Bientôt");
   });
 
   it("tâche récurrente demain listée", () => {
@@ -237,70 +176,59 @@ describe("computeDashboardAlerts", () => {
     expect(result).toEqual([]);
   });
 
-  it("cap à 5 alertes par défaut (sur les sources couvertes)", () => {
-    // On simule 10 garanties qui expirent → seules 5 doivent apparaître
-    const manyWarranties = Array.from({ length: 10 }, (_, i) =>
-      memory({
-        id: `w${i}`,
-        type: "warranty",
-        title: `Garantie ${i}`,
-        structuredData: { expiresAt: "2026-05-15" },
+  it("cap à 5 alertes par défaut (sur les tâches récurrentes)", () => {
+    // Génère 10 tâches récurrentes prévues demain
+    const startOfTomorrow = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() + 1,
+      20,
+      0,
+      0,
+    );
+    const manyTasks = Array.from({ length: 10 }, (_, i) =>
+      task({
+        id: `t${i}`,
+        title: `Récur ${i}`,
+        recurrenceRule: "FREQ=DAILY",
+        dueDate: Timestamp.fromDate(startOfTomorrow),
       }),
     );
     const result = computeDashboardAlerts({
       stocks: [],
       runs: [],
-      memoryEntries: manyWarranties,
-      tasks: [],
+      memoryEntries: [],
+      tasks: manyTasks,
       now,
     });
     expect(result.length).toBe(5);
   });
 
   it("limit custom respecté", () => {
-    const manyWarranties = Array.from({ length: 10 }, (_, i) =>
-      memory({
-        id: `w${i}`,
-        type: "warranty",
-        title: `Garantie ${i}`,
-        structuredData: { expiresAt: "2026-05-15" },
+    const startOfTomorrow = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() + 1,
+      20,
+      0,
+      0,
+    );
+    const manyTasks = Array.from({ length: 10 }, (_, i) =>
+      task({
+        id: `t${i}`,
+        title: `Récur ${i}`,
+        recurrenceRule: "FREQ=DAILY",
+        dueDate: Timestamp.fromDate(startOfTomorrow),
       }),
     );
     const result = computeDashboardAlerts({
       stocks: [],
       runs: [],
-      memoryEntries: manyWarranties,
-      tasks: [],
+      memoryEntries: [],
+      tasks: manyTasks,
       now,
       limit: 3,
     });
     expect(result.length).toBe(3);
-  });
-
-  it("tri par poids : garantie ≤7j > tâche récurrente demain", () => {
-    const result = computeDashboardAlerts({
-      stocks: [],
-      runs: [],
-      memoryEntries: [
-        memory({
-          id: "m1",
-          title: "Garantie",
-          structuredData: { expiresAt: "2026-05-15" }, // dans 3j → poids 80
-        }),
-      ],
-      tasks: [
-        task({
-          id: "t1",
-          title: "Récur demain",
-          recurrenceRule: "FREQ=DAILY",
-          dueDate: Timestamp.fromDate(new Date("2026-05-13T20:00:00")),
-        }),
-      ],
-      now,
-    });
-    expect(result.map((a) => a.kind)).toEqual([
-      "warranty-expiring",
-      "tomorrow-recurring",
-    ]);
   });
 });

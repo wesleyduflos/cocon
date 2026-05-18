@@ -9,32 +9,28 @@ import { useMemoryEntries } from "@/hooks/use-memory";
 import { matchQuery } from "@/lib/memory/tokenize";
 import type { MemoryEntry, MemoryEntryType, WithId } from "@/types/cocon";
 
-const TYPE_LABEL: Record<MemoryEntryType, string> = {
+// Labels élargis : on accepte les anciens types (contact/manual/warranty)
+// pour ne pas casser l'affichage des entrées historiques, mais les cards
+// catégories du hub ne montrent que les 3 actifs.
+const TYPE_LABEL: Record<string, string> = {
   code: "Codes",
   object: "Objets",
+  note: "Notes",
   contact: "Contacts",
   manual: "Manuels",
   warranty: "Garanties",
-  note: "Notes",
 };
 
-const TYPE_EMOJI: Record<MemoryEntryType, string> = {
+const TYPE_EMOJI: Record<string, string> = {
   code: "🔐",
   object: "📦",
+  note: "📝",
   contact: "📞",
   manual: "📖",
   warranty: "📄",
-  note: "📝",
 };
 
-const TYPE_ORDER: MemoryEntryType[] = [
-  "code",
-  "object",
-  "contact",
-  "manual",
-  "warranty",
-  "note",
-];
+const TYPE_ORDER: MemoryEntryType[] = ["code", "object", "note"];
 
 function PinnedCard({ entry }: { entry: WithId<MemoryEntry> }) {
   return (

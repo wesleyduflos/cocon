@@ -1,6 +1,14 @@
 "use client";
 
-import { ChevronDown, ChevronUp, Plus, ShoppingCart } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronUp,
+  History,
+  Plus,
+  ShoppingCart,
+  Sparkles,
+  X,
+} from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
@@ -13,7 +21,9 @@ import {
 } from "@/hooks/use-shopping";
 import {
   checkShoppingItem,
+  clearBoughtShoppingItems,
   createShoppingItem,
+  deleteShoppingItem,
   incrementShoppingItemQuantity,
   uncheckShoppingItem,
 } from "@/lib/firebase/firestore";
@@ -153,6 +163,34 @@ export default function ShoppingPage() {
     }
   }
 
+  async function handleDeleteItem(item: WithId<ShoppingItem>) {
+    if (!household) return;
+    await deleteShoppingItem(household.id, item.id);
+  }
+
+  const [clearing, setClearing] = useState(false);
+  async function handleClearBought() {
+    if (!household) return;
+    const boughtCount = items.filter((i) => i.status === "bought").length;
+    if (boughtCount === 0) {
+      showToast({ message: "Rien à nettoyer." });
+      return;
+    }
+    if (
+      !window.confirm(
+        `Supprimer définitivement ${boughtCount} article${boughtCount > 1 ? "s" : ""} coché${boughtCount > 1 ? "s" : ""} ? L'historique disparaîtra aussi.`,
+      )
+    )
+      return;
+    setClearing(true);
+    try {
+      const n = await clearBoughtShoppingItems(household.id);
+      showToast({ message: `${n} articles supprimés` });
+    } finally {
+      setClearing(false);
+    }
+  }
+
   // Indique combien d'items pending sont déjà dans la liste pour un quick-add donné
   function pendingCountFor(name: string, rayon: ShoppingRayon): number {
     return pending
@@ -178,13 +216,33 @@ export default function ShoppingPage() {
               </span>
             </h1>
           </div>
-          <Link
-            href="/shopping/new"
-            aria-label="Ajouter un article"
-            className="w-10 h-10 rounded-[10px] bg-primary text-primary-foreground flex items-center justify-center shadow-[0_0_14px_rgba(255,107,36,0.45)] hover:bg-[var(--primary-hover)] transition-colors"
-          >
-            <Plus size={20} strokeWidth={2.4} />
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/shopping/history"
+              aria-label="Historique"
+              title="Historique"
+              className="w-10 h-10 rounded-[10px] bg-surface border border-border flex items-center justify-center hover:bg-surface-elevated transition-colors"
+            >
+              <History size={16} className="text-muted-foreground" />
+            </Link>
+            <button
+              type="button"
+              onClick={handleClearBought}
+              disabled={clearing}
+              aria-label="Nettoyer la liste (supprimer les cochés)"
+              title="Nettoyer (supprimer les cochés)"
+              className="w-10 h-10 rounded-[10px] bg-surface border border-border flex items-center justify-center hover:bg-destructive/10 hover:text-destructive transition-colors disabled:opacity-50"
+            >
+              <Sparkles size={16} className="text-muted-foreground" />
+            </button>
+            <Link
+              href="/shopping/new"
+              aria-label="Ajouter un article"
+              className="w-10 h-10 rounded-[10px] bg-primary text-primary-foreground flex items-center justify-center shadow-[0_0_14px_rgba(255,107,36,0.45)] hover:bg-[var(--primary-hover)] transition-colors"
+            >
+              <Plus size={20} strokeWidth={2.4} />
+            </Link>
+          </div>
         </header>
 
         {/* Essentiels du foyer */}
@@ -354,6 +412,17 @@ export default function ShoppingPage() {
                                 </span>
                               ) : null}
                             </Link>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteItem(item);
+                              }}
+                              aria-label={`Supprimer ${item.name}`}
+                              className="w-7 h-7 rounded-[8px] flex items-center justify-center text-foreground-faint hover:bg-destructive/20 hover:text-destructive transition-colors shrink-0"
+                            >
+                              <X size={14} />
+                            </button>
                           </li>
                           );
                         })}

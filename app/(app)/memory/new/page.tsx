@@ -22,14 +22,6 @@ const TYPES: Array<{
     hint: "Wi-Fi, portail, alarme…",
   },
   { value: "object", label: "Objet", emoji: "📦", hint: "Passeport, papiers…" },
-  {
-    value: "contact",
-    label: "Contact",
-    emoji: "📞",
-    hint: "Vétérinaire, plombier…",
-  },
-  { value: "manual", label: "Manuel", emoji: "📖", hint: "Notice électroménager" },
-  { value: "warranty", label: "Garantie", emoji: "📄", hint: "Achats récents" },
   { value: "note", label: "Note", emoji: "📝", hint: "Texte libre" },
 ];
 
@@ -230,95 +222,6 @@ export default function NewMemoryEntryPage() {
               disabled={submitting}
             />
           </Field>
-        ) : null}
-
-        {type === "contact" ? (
-          <>
-            <Field label="Téléphone">
-              <input
-                type="tel"
-                value={fields.phone ?? ""}
-                onChange={(e) => setField("phone", e.target.value)}
-                placeholder="06 12 34 56 78"
-                className="rounded-[10px] border border-border bg-surface px-3 py-2.5 text-[14px]"
-                disabled={submitting}
-              />
-            </Field>
-            <Field label="Email">
-              <input
-                type="email"
-                value={fields.email ?? ""}
-                onChange={(e) => setField("email", e.target.value)}
-                className="rounded-[10px] border border-border bg-surface px-3 py-2.5 text-[14px]"
-                disabled={submitting}
-              />
-            </Field>
-            <Field label="Spécialité / rôle">
-              <input
-                type="text"
-                value={fields.specialty ?? ""}
-                onChange={(e) => setField("specialty", e.target.value)}
-                placeholder="ex. Vétérinaire"
-                className="rounded-[10px] border border-border bg-surface px-3 py-2.5 text-[14px]"
-                disabled={submitting}
-              />
-            </Field>
-          </>
-        ) : null}
-
-        {type === "manual" ? (
-          <>
-            <Field label="Marque">
-              <input
-                type="text"
-                value={fields.brand ?? ""}
-                onChange={(e) => setField("brand", e.target.value)}
-                className="rounded-[10px] border border-border bg-surface px-3 py-2.5 text-[14px]"
-                disabled={submitting}
-              />
-            </Field>
-            <Field label="Modèle">
-              <input
-                type="text"
-                value={fields.model ?? ""}
-                onChange={(e) => setField("model", e.target.value)}
-                className="rounded-[10px] border border-border bg-surface px-3 py-2.5 text-[14px]"
-                disabled={submitting}
-              />
-            </Field>
-            <Field label="Date d'achat">
-              <input
-                type="date"
-                value={fields.purchaseDate ?? ""}
-                onChange={(e) => setField("purchaseDate", e.target.value)}
-                className="rounded-[10px] border border-border bg-surface px-3 py-2.5 text-[14px]"
-                disabled={submitting}
-              />
-            </Field>
-          </>
-        ) : null}
-
-        {type === "warranty" ? (
-          <>
-            <Field label="Produit">
-              <input
-                type="text"
-                value={fields.product ?? ""}
-                onChange={(e) => setField("product", e.target.value)}
-                className="rounded-[10px] border border-border bg-surface px-3 py-2.5 text-[14px]"
-                disabled={submitting}
-              />
-            </Field>
-            <Field label="Date d'expiration">
-              <input
-                type="date"
-                value={fields.expiryDate ?? ""}
-                onChange={(e) => setField("expiryDate", e.target.value)}
-                className="rounded-[10px] border border-border bg-surface px-3 py-2.5 text-[14px]"
-                disabled={submitting}
-              />
-            </Field>
-          </>
         ) : null}
 
         {type === "note" ? (

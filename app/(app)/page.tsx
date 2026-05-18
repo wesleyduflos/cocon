@@ -66,12 +66,14 @@ function getSummary(
     return `${overdue.length} ${overdue.length > 1 ? "tâches" : "tâche"} en retard à régler.`;
   }
   if (today.length > 0) {
+    const tachesLabel = today.length > 1 ? "tâches" : "tâche";
     return todayForMe.length > 0
-      ? `${today.length} pour aujourd'hui · ${todayForMe.length} pour toi.`
-      : `${today.length} pour aujourd'hui.`;
+      ? `${today.length} ${tachesLabel} aujourd'hui · ${todayForMe.length} pour toi.`
+      : `${today.length} ${tachesLabel} aujourd'hui.`;
   }
   if (pending.length > 0) {
-    return `${pending.length} en cours, rien d'urgent.`;
+    const tachesLabel = pending.length > 1 ? "tâches en cours" : "tâche en cours";
+    return `${pending.length} ${tachesLabel}, rien d'urgent.`;
   }
   return "Rien à faire aujourd'hui — profite.";
 }

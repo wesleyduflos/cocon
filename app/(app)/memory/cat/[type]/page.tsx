@@ -10,32 +10,25 @@ import { useMemoryEntries } from "@/hooks/use-memory";
 import { matchQuery } from "@/lib/memory/tokenize";
 import type { MemoryEntry, MemoryEntryType, WithId } from "@/types/cocon";
 
-const TYPE_LABEL: Record<MemoryEntryType, string> = {
+const TYPE_LABEL: Record<string, string> = {
   code: "Codes",
   object: "Objets",
+  note: "Notes",
   contact: "Contacts",
   manual: "Manuels",
   warranty: "Garanties",
-  note: "Notes",
 };
 
-const TYPE_EMOJI: Record<MemoryEntryType, string> = {
+const TYPE_EMOJI: Record<string, string> = {
   code: "🔐",
   object: "📦",
+  note: "📝",
   contact: "📞",
   manual: "📖",
   warranty: "📄",
-  note: "📝",
 };
 
-const VALID_TYPES: MemoryEntryType[] = [
-  "code",
-  "object",
-  "contact",
-  "manual",
-  "warranty",
-  "note",
-];
+const VALID_TYPES: MemoryEntryType[] = ["code", "object", "note"];
 
 function isMemoryEntryType(s: string): s is MemoryEntryType {
   return (VALID_TYPES as string[]).includes(s);
