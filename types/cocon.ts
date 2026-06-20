@@ -160,6 +160,22 @@ export interface Task {
   updatedAt: Timestamp;
 }
 
+/**
+ * Sprint 6 — bloc F. Sous-tâche d'une tâche parente. Hérite
+ * implicitement de la parente (assignee, dueDate, category) — non
+ * dupliqué dans le document, lu depuis la tâche parente côté UI.
+ */
+export interface Subtask {
+  title: string;
+  status: TaskStatus;
+  /** Ordre dans la liste, ASC. Auto-attribué (max+1) à la création. */
+  position: number;
+  completedAt?: Timestamp;
+  completedBy?: string;
+  createdAt: Timestamp;
+  createdBy: string;
+}
+
 // ---------- Shopping ----------
 
 export type ShoppingStatus = "pending" | "bought";

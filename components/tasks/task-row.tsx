@@ -1,17 +1,20 @@
 "use client";
 
-import { MessageSquare, Repeat, Star } from "lucide-react";
+import { ChevronDown, ChevronUp, MessageSquare, Repeat, Star } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
 import { useToast } from "@/components/shared/toast-provider";
 import { TaskCommentModal } from "@/components/tasks/task-comment-modal";
+import { TaskSubtasksInline } from "@/components/tasks/task-subtasks-inline";
+import { useSubtasks } from "@/hooks/use-subtasks";
 import {
   completeRecurringTask,
   completeTask,
   uncompleteTask,
 } from "@/lib/firebase/firestore";
 import { describeRRule, getNextOccurrence } from "@/lib/recurrence";
+import { countSubtasksDone } from "@/lib/tasks/subtasks";
 import type { Task, WithId } from "@/types/cocon";
 
 function formatDueLabel(task: Pick<Task, "dueDate">): string | null {
@@ -43,10 +46,17 @@ export function TaskRow({
   const { showToast } = useToast();
   const [pending, setPending] = useState(false);
   const [commentOpen, setCommentOpen] = useState(false);
+  const [subtasksExpanded, setSubtasksExpanded] = useState(false);
   const due = formatDueLabel(task);
   const isDone = task.status === "done";
   const hasComment =
     Boolean(task.description?.trim()) || Boolean(task.notes?.trim());
+  // Sprint 6 — F.3 : subscribe aux sous-tâches pour pouvoir afficher
+  // le compteur X/Y et permettre l'expand inline. À petite échelle
+  // (Cocon = ~20 tâches max), 20 listeners restent raisonnables.
+  const { subtasks } = useSubtasks(householdId, task.id);
+  const counter = countSubtasksDone(subtasks);
+  const showSubtasksToggle = counter.total > 0;
 
   async function handleToggle() {
     if (pending) return;
@@ -107,12 +117,13 @@ export function TaskRow({
 
   return (
     <div
-      className={`relative ${rootRadius} border ${rootBg} flex items-center gap-2.5 transition-colors ${
+      className={`relative ${rootRadius} border ${rootBg} flex flex-col transition-colors ${
         overdue
           ? "border-l-2 border-l-destructive border-y-transparent border-r-transparent"
           : rootBorder
       }`}
     >
+      <div className="flex items-center gap-2.5">
       <button
         type="button"
         onClick={handleToggle}
@@ -175,10 +186,42 @@ export function TaskRow({
           }}
           aria-label="Voir le commentaire"
           title="Voir le commentaire"
-          className={`shrink-0 w-8 h-8 mr-2 rounded-[8px] flex items-center justify-center text-muted-foreground hover:bg-surface-elevated hover:text-foreground transition-colors`}
+          className={`shrink-0 w-8 h-8 rounded-[8px] flex items-center justify-center text-muted-foreground hover:bg-surface-elevated hover:text-foreground transition-colors`}
         >
           <MessageSquare size={14} />
         </button>
+      ) : null}
+      {showSubtasksToggle ? (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setSubtasksExpanded((v) => !v);
+          }}
+          aria-label={
+            subtasksExpanded ? "Replier sous-tâches" : "Déplier sous-tâches"
+          }
+          aria-expanded={subtasksExpanded}
+          className="shrink-0 mr-2 px-2 h-8 rounded-[8px] flex items-center gap-1 text-muted-foreground hover:bg-surface-elevated hover:text-foreground transition-colors"
+        >
+          {counter.label ? (
+            <span className="text-[12px] font-semibold">{counter.label}</span>
+          ) : null}
+          {subtasksExpanded ? (
+            <ChevronUp size={14} />
+          ) : (
+            <ChevronDown size={14} />
+          )}
+        </button>
+      ) : null}
+      </div>
+      {subtasksExpanded ? (
+        <TaskSubtasksInline
+          householdId={householdId}
+          task={task}
+          userId={userId}
+        />
       ) : null}
       {commentOpen ? (
         <TaskCommentModal

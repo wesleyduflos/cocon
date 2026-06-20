@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState, type FormEvent } from "react";
 
 import { RecurrencePicker } from "@/components/tasks/recurrence-picker";
+import { TaskSubtasks } from "@/components/tasks/task-subtasks";
 import { useToast } from "@/components/shared/toast-provider";
 import { useAuth } from "@/hooks/use-auth";
 import { useCurrentHousehold } from "@/hooks/use-household";
@@ -484,6 +485,14 @@ export default function EditTaskPage() {
             className="rounded-[12px] border border-border bg-surface px-4 py-3 text-[14px] focus:outline-none focus:border-primary focus:ring-2 focus:ring-[rgba(255,107,36,0.18)] disabled:opacity-50 resize-none"
           />
         </div>
+
+        {task && user ? (
+          <TaskSubtasks
+            householdId={household!.id}
+            task={task}
+            userId={user.uid}
+          />
+        ) : null}
 
         <div className="flex flex-col gap-3">
           <span className="text-[0.6875rem] uppercase tracking-[0.12em] text-muted-foreground">

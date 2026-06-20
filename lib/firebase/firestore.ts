@@ -46,6 +46,7 @@ import {
   type ShoppingRayon,
   type StockItem,
   type StockLevel,
+  type Subtask,
   type Suggestion,
   type Task,
   type User,
@@ -78,6 +79,7 @@ export const userConverter = makeConverter<User>();
 export const householdConverter = makeConverter<Household>();
 export const householdMemberConverter = makeConverter<HouseholdMember>();
 export const taskConverter = makeConverter<Task>();
+export const subtaskConverter = makeConverter<Subtask>();
 export const invitationConverter = makeConverter<Invitation>();
 export const inviteCodeConverter = makeConverter<InviteCode>();
 export const calendarEventConverter = makeConverter<CalendarEvent>();
@@ -802,6 +804,98 @@ export async function deleteTask(
   taskId: string,
 ): Promise<void> {
   await deleteDoc(householdTaskDoc(householdId, taskId));
+}
+
+/* ----------------------- Sous-tâches (sprint 6 — bloc F) ----------------- */
+
+export function subtasksCollection(
+  householdId: string,
+  taskId: string,
+): CollectionReference<Subtask> {
+  return collection(
+    db,
+    "households",
+    householdId,
+    "tasks",
+    taskId,
+    "subtasks",
+  ).withConverter(subtaskConverter);
+}
+
+export function subtaskDoc(
+  householdId: string,
+  taskId: string,
+  subtaskId: string,
+): DocumentReference<Subtask> {
+  return doc(
+    db,
+    "households",
+    householdId,
+    "tasks",
+    taskId,
+    "subtasks",
+    subtaskId,
+  ).withConverter(subtaskConverter);
+}
+
+export async function createSubtask(
+  householdId: string,
+  taskId: string,
+  input: { title: string; position: number; createdBy: string },
+): Promise<string> {
+  const ref = await addDoc(subtasksCollection(householdId, taskId), {
+    title: input.title,
+    status: "pending",
+    position: input.position,
+    createdAt: serverTimestamp() as unknown as Timestamp,
+    createdBy: input.createdBy,
+  });
+  return ref.id;
+}
+
+export async function toggleSubtask(
+  householdId: string,
+  taskId: string,
+  subtaskId: string,
+  done: boolean,
+  userId: string,
+): Promise<void> {
+  if (done) {
+    await updateDoc(subtaskDoc(householdId, taskId, subtaskId), {
+      status: "done",
+      completedAt: serverTimestamp() as unknown as Timestamp,
+      completedBy: userId,
+    });
+  } else {
+    await updateDoc(subtaskDoc(householdId, taskId, subtaskId), {
+      status: "pending",
+      completedAt: deleteField(),
+      completedBy: deleteField(),
+    });
+  }
+}
+
+export async function deleteSubtask(
+  householdId: string,
+  taskId: string,
+  subtaskId: string,
+): Promise<void> {
+  await deleteDoc(subtaskDoc(householdId, taskId, subtaskId));
+}
+
+export async function updateSubtaskPositions(
+  householdId: string,
+  taskId: string,
+  updates: Array<{ id: string; position: number }>,
+): Promise<void> {
+  if (updates.length === 0) return;
+  const batch = writeBatch(db);
+  for (const u of updates) {
+    batch.update(subtaskDoc(householdId, taskId, u.id), {
+      position: u.position,
+    });
+  }
+  await batch.commit();
 }
 
 /**
