@@ -12,6 +12,7 @@ import { useMemo, useState } from "react";
 
 import { useToast } from "@/components/shared/toast-provider";
 import { QuantityPill } from "@/components/shopping/quantity-pill";
+import { ShoppingQuickAddBar } from "@/components/shopping/quick-add-bar";
 import { RayonBandeau } from "@/components/shopping/rayon-bandeau";
 import { useAuth } from "@/hooks/use-auth";
 import { useCurrentHousehold } from "@/hooks/use-household";
@@ -19,6 +20,7 @@ import {
   useQuickAddItems,
   useShoppingItems,
 } from "@/hooks/use-shopping";
+import { useCurrentUserProfile } from "@/hooks/use-user-profile";
 import {
   checkShoppingItem,
   clearBoughtShoppingItems,
@@ -26,6 +28,7 @@ import {
   deleteShoppingItem,
   incrementShoppingItemQuantity,
   uncheckShoppingItem,
+  updateUserPreferences,
 } from "@/lib/firebase/firestore";
 import type { ShoppingItem, ShoppingRayon, WithId } from "@/types/cocon";
 
@@ -48,6 +51,7 @@ const RAYON_ORDER: ShoppingRayon[] = [
 export default function ShoppingPage() {
   const { user } = useAuth();
   const { household } = useCurrentHousehold();
+  const { profile } = useCurrentUserProfile();
   const { showToast } = useToast();
 
   const { items, loading } = useShoppingItems(household?.id);
@@ -185,49 +189,86 @@ export default function ShoppingPage() {
       .reduce((sum, i) => sum + (i.quantity ?? 1), 0);
   }
 
+  const hintShown =
+    profile?.raw?.preferences?.shoppingQuickAddHintShown === true;
+  const showHint = !hintShown && items.length === 0;
+
+  async function dismissHint() {
+    if (!user || hintShown) return;
+    try {
+      await updateUserPreferences(user.uid, {
+        shoppingQuickAddHintShown: true,
+      });
+    } catch {
+      // silencieux, c'est juste un hint
+    }
+  }
+
   return (
-    <main className="flex flex-1 flex-col px-5 py-6">
-      <div className="w-full max-w-md mx-auto flex flex-col gap-6">
-        <header className="flex items-center justify-between">
-          <div className="flex flex-col gap-1">
-            <p className="text-[0.6875rem] uppercase tracking-[0.12em] text-muted-foreground">
-              À acheter
-            </p>
-            <h1 className="font-display text-[28px] font-semibold leading-[1.05]">
-              Courses{" "}
-              <span className="text-muted-foreground font-normal text-[20px]">
-                · {pendingCount}
-              </span>
-            </h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <Link
-              href="/shopping/history"
-              aria-label="Historique"
-              title="Historique"
-              className="w-10 h-10 rounded-[10px] bg-surface border border-border flex items-center justify-center hover:bg-surface-elevated transition-colors"
-            >
-              <History size={16} className="text-muted-foreground" />
-            </Link>
-            <button
-              type="button"
-              onClick={handleClearBought}
-              disabled={clearing}
-              aria-label="Nettoyer la liste (supprimer les cochés)"
-              title="Nettoyer (supprimer les cochés)"
-              className="w-10 h-10 rounded-[10px] bg-surface border border-border flex items-center justify-center hover:bg-destructive/10 hover:text-destructive transition-colors disabled:opacity-50"
-            >
-              <Sparkles size={16} className="text-muted-foreground" />
-            </button>
-            <Link
-              href="/shopping/new"
-              aria-label="Ajouter un article"
-              className="w-10 h-10 rounded-[10px] bg-primary text-primary-foreground flex items-center justify-center shadow-[0_0_14px_rgba(255,107,36,0.45)] hover:bg-[var(--primary-hover)] transition-colors"
-            >
-              <Plus size={20} strokeWidth={2.4} />
-            </Link>
-          </div>
-        </header>
+    <main className="flex flex-1 flex-col pb-6">
+      <div
+        className="sticky top-0 z-30 px-5 pt-6 pb-3 bg-background/85 backdrop-blur-xl"
+        style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 18px)" }}
+      >
+        <div className="w-full max-w-md mx-auto flex flex-col gap-3">
+          <header className="flex items-center justify-between">
+            <div className="flex flex-col gap-1">
+              <p className="text-[0.6875rem] uppercase tracking-[0.12em] text-muted-foreground">
+                À acheter
+              </p>
+              <h1 className="font-display text-[28px] font-semibold leading-[1.05]">
+                Courses{" "}
+                <span className="text-muted-foreground font-normal text-[20px]">
+                  · {pendingCount}
+                </span>
+              </h1>
+            </div>
+            <div className="flex items-center gap-2">
+              <Link
+                href="/shopping/history"
+                aria-label="Historique"
+                title="Historique"
+                className="w-10 h-10 rounded-[10px] bg-surface border border-border flex items-center justify-center hover:bg-surface-elevated transition-colors"
+              >
+                <History size={16} className="text-muted-foreground" />
+              </Link>
+              <button
+                type="button"
+                onClick={handleClearBought}
+                disabled={clearing}
+                aria-label="Nettoyer la liste (supprimer les cochés)"
+                title="Nettoyer (supprimer les cochés)"
+                className="w-10 h-10 rounded-[10px] bg-surface border border-border flex items-center justify-center hover:bg-destructive/10 hover:text-destructive transition-colors disabled:opacity-50"
+              >
+                <Sparkles size={16} className="text-muted-foreground" />
+              </button>
+              <Link
+                href="/shopping/new"
+                aria-label="Ajouter un article (avancé)"
+                title="Ajout avancé"
+                className="w-10 h-10 rounded-[10px] bg-surface border border-border flex items-center justify-center hover:bg-surface-elevated transition-colors"
+              >
+                <Plus size={18} strokeWidth={2.2} className="text-muted-foreground" />
+              </Link>
+            </div>
+          </header>
+          {household && user ? (
+            <>
+              <ShoppingQuickAddBar
+                householdId={household.id}
+                userId={user.uid}
+                onAdded={() => void dismissHint()}
+              />
+              {showHint ? (
+                <p className="text-[12px] text-muted-foreground leading-snug px-1">
+                  Tape juste « lait » — Cocon range et catégorise tout seul ✨
+                </p>
+              ) : null}
+            </>
+          ) : null}
+        </div>
+      </div>
+      <div className="w-full max-w-md mx-auto px-5 pt-5 flex flex-col gap-6">
 
         {/* Essentiels du foyer */}
         {quickAdd.length > 0 ? (

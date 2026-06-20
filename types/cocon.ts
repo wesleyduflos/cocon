@@ -34,6 +34,9 @@ export interface UserPreferences {
   };
   /** Sprint 5 — consent géoloc : null = pas encore demandé. */
   locationConsent?: "granted" | "denied";
+  /** Sprint 6 — true si l'utilisateur a déjà utilisé l'ajout rapide sticky
+   *  de courses (cache le hint « tape juste lait — Cocon range tout »). */
+  shoppingQuickAddHintShown?: boolean;
 }
 
 export interface User {
