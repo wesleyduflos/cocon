@@ -10,13 +10,18 @@ export interface ParseShoppingOutput {
   quantity?: number;
   unit?: string;
   rayon?:
-    | "Frais"
-    | "Épicerie"
-    | "Hygiène"
+    | "Fruits & légumes"
     | "Boulangerie"
+    | "Viandes"
+    | "Poisson"
+    | "Produits laitiers"
+    | "Frais"
+    | "Conserves"
+    | "Épicerie"
     | "Boissons"
-    | "Animalerie"
+    | "Hygiène"
     | "Maison"
+    | "Animalerie"
     | "Autre";
   confidence: number;
 }
@@ -24,20 +29,32 @@ export interface ParseShoppingOutput {
 const SYSTEM_PROMPT = `Tu transformes une phrase libre en français en article de courses pour Cocon, app de gestion partagée du foyer.
 
 Règles :
-- name : nom court de l'article (ex: "Lait demi-écrémé", "Croquettes pour chat", "Pâtes Barilla"). Pas de quantité ni d'unité dans le nom.
-- emoji : un emoji approprié si évident (🥛 lait, 🥖 pain, 🥚 œufs, 🥩 viande, 🐟 poisson, 🍎 fruit, 🥗 légume, 🧀 fromage, 🍿 snack, 🍷 boisson, 🧴 cosmétique, 🐾 animaux). Omettre si pas évident.
+- name : nom court de l'article (ex: "Lait demi-écrémé", "Croquettes pour chat", "Pâtes Barilla"). Pas de quantité ni d'unité dans le nom. Corrige les fautes d'orthographe et la casse (« pomme de terre » → « Pommes de terre »).
+- emoji : un emoji approprié si évident (🥛 lait, 🥖 pain, 🥚 œufs, 🥩 viande, 🐟 poisson, 🍎 fruit, 🥕 légume, 🧀 fromage, 🥫 conserve, 🍿 snack, 🍷 boisson, 🧴 cosmétique, 🐾 animaux). Omettre si pas évident.
 - quantity : nombre détecté ("2 litres" → 2). Défaut 1.
 - unit : "L", "kg", "g", "pcs", "pack". Omettre si pas explicite.
-- rayon :
-  - "Frais" : produits laitiers, viande, poisson, fromage, charcuterie
-  - "Épicerie" : pâtes, riz, conserves, sauces, snacks secs, café, thé
-  - "Hygiène" : dentifrice, shampoing, savon, papier toilette
-  - "Boulangerie" : pain, viennoiseries
-  - "Boissons" : eau, sodas, jus, alcool
+- rayon (RANGEMENT STRICT — utilise toujours le rayon le plus spécifique) :
+  - "Fruits & légumes" : tous les fruits et légumes frais (pommes, bananes, salade, carottes, pomme de terre, oignons, tomates, courgettes, herbes fraîches, champignons, etc.)
+  - "Boulangerie" : pain, baguettes, viennoiseries, pâtisseries
+  - "Viandes" : viandes fraîches, charcuterie, volaille (poulet, bœuf, jambon, saucisses)
+  - "Poisson" : poissons, fruits de mer, crustacés frais ou surgelés
+  - "Produits laitiers" : lait, yaourts, beurre, crème, fromages, œufs
+  - "Frais" : SEULEMENT pour traiteur frais, plats préparés frigo, salades en barquette (PAS pour les autres frais)
+  - "Conserves" : boîtes de conserve, bocaux, légumineuses en conserve, sauces tomate en bocal
+  - "Épicerie" : pâtes, riz, semoule, farine, sucre, sel, épices, snacks secs, café, thé, chocolat, céréales
+  - "Boissons" : eau, sodas, jus, sirops, alcool, café en grain, vin
+  - "Hygiène" : dentifrice, shampoing, savon, papier toilette, cosmétiques
+  - "Maison" : produits ménagers, lessive, éponges, ampoules, piles
   - "Animalerie" : croquettes, litière, jouets animaux
-  - "Maison" : produits ménagers, ampoules, piles
-  - "Autre" : si pas évident
+  - "Autre" : SEULEMENT si vraiment aucune catégorie ne convient
 - confidence : 0.9+ si tout est explicite, < 0.6 si très ambigu
+
+Exemples de classification :
+- "pomme de terre" → Fruits & légumes (pas Frais)
+- "saumon" → Poisson (pas Frais)
+- "comté" → Produits laitiers (pas Frais)
+- "thon en boîte" → Conserves (pas Épicerie)
+- "salade préparée" → Frais (plat préparé)
 
 Utilise l'outil create_shopping_item pour répondre. Pas de texte additionnel.`;
 
@@ -54,13 +71,18 @@ const TOOL: Anthropic.Messages.Tool = {
       rayon: {
         type: "string",
         enum: [
-          "Frais",
-          "Épicerie",
-          "Hygiène",
+          "Fruits & légumes",
           "Boulangerie",
+          "Viandes",
+          "Poisson",
+          "Produits laitiers",
+          "Frais",
+          "Conserves",
+          "Épicerie",
           "Boissons",
-          "Animalerie",
+          "Hygiène",
           "Maison",
+          "Animalerie",
           "Autre",
         ],
       },
