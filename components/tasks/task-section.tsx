@@ -4,6 +4,7 @@ import { ArrowUpDown, Check, X } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { useToast } from "@/components/shared/toast-provider";
+import { SwipeableTask } from "@/components/tasks/swipeable-task";
 import { TaskRow } from "@/components/tasks/task-row";
 import { useFlipAnimation } from "@/hooks/use-flip-animation";
 import { setTaskManualOrders } from "@/lib/firebase/firestore";
@@ -189,12 +190,18 @@ export function TaskSection({
                   : ""
               }`}
             >
-              <TaskRow
+              <SwipeableTask
                 task={t}
-                overdue={isOverdue}
                 householdId={householdId}
-                userId={userId}
-              />
+                disabled={reorderMode}
+              >
+                <TaskRow
+                  task={t}
+                  overdue={isOverdue}
+                  householdId={householdId}
+                  userId={userId}
+                />
+              </SwipeableTask>
               {reorderMode && isNumbered ? (
                 <span
                   className="absolute top-1.5 right-1.5 min-w-[22px] h-[22px] rounded-full bg-primary text-primary-foreground text-[12px] font-bold flex items-center justify-center px-1.5 shadow-[0_0_10px_rgba(255,107,36,0.5)]"
