@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import type { Task, WithId } from "@/types/cocon";
 
-import { sortByPriorityThenDue } from "./sort";
+import { sortByPriorityThenDue, sortTasksWithManualOrder } from "./sort";
 
 function makeTask(
   partial: Partial<Task> & { id: string; title?: string },
@@ -107,5 +107,55 @@ describe("sortByPriorityThenDue", () => {
       "m",
       "z",
     ]);
+  });
+});
+
+describe("sortTasksWithManualOrder", () => {
+  it("place les tâches avec manualOrder en haut, triées ASC", () => {
+    const tasks = [
+      makeTask({ id: "a" }),
+      makeTask({ id: "b", manualOrder: 2 }),
+      makeTask({ id: "c", manualOrder: 1 }),
+    ];
+    expect(sortTasksWithManualOrder(tasks).map((t) => t.id)).toEqual([
+      "c",
+      "b",
+      "a",
+    ]);
+  });
+
+  it("conserve le tri par défaut pour les tâches sans manualOrder", () => {
+    const tasks = [
+      makeTask({ id: "z", title: "Zoo" }),
+      makeTask({ id: "a", title: "Apple" }),
+      makeTask({ id: "p", priority: true, title: "Prio" }),
+    ];
+    expect(sortTasksWithManualOrder(tasks).map((t) => t.id)).toEqual([
+      "p",
+      "a",
+      "z",
+    ]);
+  });
+
+  it("manualOrder=0 est valide (distinct de undefined)", () => {
+    const tasks = [
+      makeTask({ id: "a" }),
+      makeTask({ id: "b", manualOrder: 0 }),
+    ];
+    expect(sortTasksWithManualOrder(tasks).map((t) => t.id)).toEqual([
+      "b",
+      "a",
+    ]);
+  });
+
+  it("aucune tâche avec manualOrder → équivalent à sortByPriorityThenDue", () => {
+    const tasks = [
+      makeTask({ id: "a", title: "Apple" }),
+      makeTask({ id: "z", title: "Zoo" }),
+      makeTask({ id: "p", priority: true, title: "Prio" }),
+    ];
+    expect(sortTasksWithManualOrder(tasks).map((t) => t.id)).toEqual(
+      sortByPriorityThenDue(tasks).map((t) => t.id),
+    );
   });
 });

@@ -151,6 +151,10 @@ export interface Task {
   /** Sprint 2 — dernière fois qu'une notification de rappel a été envoyée pour cette tâche. */
   reminderSentAt?: Timestamp;
   checklistRunId?: string; // sprint 3
+  /** Sprint 6 — ordre manuel défini par l'utilisateur via le mode
+   *  « Ordonner ». Plus bas = en haut de section. Les tâches sans
+   *  manualOrder restent triées par défaut (priorité puis due). */
+  manualOrder?: number;
   createdAt: Timestamp;
   createdBy: string;
   updatedAt: Timestamp;

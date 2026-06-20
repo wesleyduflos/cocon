@@ -23,6 +23,7 @@ import {
   setDoc,
   updateDoc,
   where,
+  writeBatch,
 } from "firebase/firestore";
 
 import {
@@ -801,6 +802,34 @@ export async function deleteTask(
   taskId: string,
 ): Promise<void> {
   await deleteDoc(householdTaskDoc(householdId, taskId));
+}
+
+/**
+ * Sprint 6 — bloc D : applique un ordre manuel à un lot de tâches.
+ *
+ * `orderedIds` est la liste des tâches dans l'ordre voulu (index 0 = première).
+ * Les tâches absentes de la liste reçoivent `manualOrder: null` (suppression
+ * du champ) — on s'appuie sur le caller pour passer les ids à reset.
+ */
+export async function setTaskManualOrders(
+  householdId: string,
+  orderedIds: string[],
+  resetIds: string[] = [],
+): Promise<void> {
+  const batch = writeBatch(db);
+  orderedIds.forEach((id, idx) => {
+    batch.update(householdTaskDoc(householdId, id), {
+      manualOrder: idx,
+      updatedAt: serverTimestamp() as unknown as Timestamp,
+    });
+  });
+  resetIds.forEach((id) => {
+    batch.update(householdTaskDoc(householdId, id), {
+      manualOrder: deleteField(),
+      updatedAt: serverTimestamp() as unknown as Timestamp,
+    });
+  });
+  await batch.commit();
 }
 
 /* =========================================================================

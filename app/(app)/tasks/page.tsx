@@ -4,7 +4,7 @@ import { Plus } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
-import { TaskRow } from "@/components/tasks/task-row";
+import { TaskSection } from "@/components/tasks/task-section";
 import { useAuth } from "@/hooks/use-auth";
 import { useCurrentHousehold } from "@/hooks/use-household";
 import { useMembers } from "@/hooks/use-members";
@@ -21,55 +21,9 @@ import {
   filtersEqual,
   type TaskFilter,
 } from "@/lib/tasks/filters";
-import { sortByPriorityThenDue } from "@/lib/tasks/sort";
+import { sortTasksWithManualOrder } from "@/lib/tasks/sort";
 import type { Task, WithId } from "@/types/cocon";
 
-function Section({
-  title,
-  subtitle,
-  tasks,
-  overdue,
-  householdId,
-  userId,
-}: {
-  title: string;
-  subtitle?: string;
-  tasks: WithId<Task>[];
-  overdue?: WithId<Task>[];
-  householdId: string;
-  userId: string;
-}) {
-  if (tasks.length === 0 && (!overdue || overdue.length === 0)) return null;
-  return (
-    <section className="flex flex-col gap-2.5">
-      <div className="flex items-baseline justify-between px-1">
-        <h2 className="text-[0.6875rem] uppercase tracking-[0.12em] text-muted-foreground">
-          {title}
-        </h2>
-        {subtitle ? (
-          <p className="text-[11px] text-destructive">{subtitle}</p>
-        ) : null}
-      </div>
-      <ul className="flex flex-col gap-2">
-        {overdue?.map((t) => (
-          <li key={t.id}>
-            <TaskRow
-              task={t}
-              overdue
-              householdId={householdId}
-              userId={userId}
-            />
-          </li>
-        ))}
-        {tasks.map((t) => (
-          <li key={t.id}>
-            <TaskRow task={t} householdId={householdId} userId={userId} />
-          </li>
-        ))}
-      </ul>
-    </section>
-  );
-}
 
 export default function TasksPage() {
   const { user } = useAuth();
@@ -134,15 +88,20 @@ export default function TasksPage() {
       }
       later.push(t);
     }
-    // Sprint 5 B.4 : prioritaires en haut de chaque section temporelle
+    // Sprint 6 D.6 : manualOrder en premier, puis fallback prio + due
     return {
-      today: sortByPriorityThenDue(today),
-      overdue: sortByPriorityThenDue(overdue),
-      week: sortByPriorityThenDue(week),
-      later: sortByPriorityThenDue(later),
+      today: sortTasksWithManualOrder(today),
+      overdue: sortTasksWithManualOrder(overdue),
+      week: sortTasksWithManualOrder(week),
+      later: sortTasksWithManualOrder(later),
       recent,
     };
   }, [filtered]);
+
+  // Sprint 6 D.2 — quand une section est en mode ordonner, les autres se grisent.
+  const [activeReorderSection, setActiveReorderSection] = useState<
+    "today" | "week" | "later" | null
+  >(null);
 
   const pendingCount = useMemo(
     () => tasks.filter((t) => t.status === "pending").length,
@@ -248,7 +207,7 @@ export default function TasksPage() {
         </div>
       ) : household && user ? (
         <div className="flex flex-col gap-6">
-          <Section
+          <TaskSection
             title="Aujourd'hui"
             subtitle={
               groups.overdue.length > 0
@@ -259,24 +218,44 @@ export default function TasksPage() {
             overdue={groups.overdue}
             householdId={household.id}
             userId={user.uid}
+            dimmed={
+              activeReorderSection !== null &&
+              activeReorderSection !== "today"
+            }
+            onReorderStart={() => setActiveReorderSection("today")}
+            onReorderEnd={() => setActiveReorderSection(null)}
           />
-          <Section
+          <TaskSection
             title="Cette semaine"
             tasks={groups.week}
             householdId={household.id}
             userId={user.uid}
+            dimmed={
+              activeReorderSection !== null &&
+              activeReorderSection !== "week"
+            }
+            onReorderStart={() => setActiveReorderSection("week")}
+            onReorderEnd={() => setActiveReorderSection(null)}
           />
-          <Section
+          <TaskSection
             title="Plus tard"
             tasks={groups.later}
             householdId={household.id}
             userId={user.uid}
+            dimmed={
+              activeReorderSection !== null &&
+              activeReorderSection !== "later"
+            }
+            onReorderStart={() => setActiveReorderSection("later")}
+            onReorderEnd={() => setActiveReorderSection(null)}
           />
-          <Section
+          <TaskSection
             title="Fait récemment"
             tasks={groups.recent}
             householdId={household.id}
             userId={user.uid}
+            reorderable={false}
+            dimmed={activeReorderSection !== null}
           />
         </div>
       ) : null}

@@ -25,3 +25,27 @@ export function sortByPriorityThenDue(
   });
   return copy;
 }
+
+/**
+ * Tri avec ordre manuel (sprint 6 — bloc D).
+ *
+ * Sépare les tâches en deux groupes :
+ *  1. Celles avec `manualOrder` défini, triées par cette valeur ASC
+ *  2. Celles sans, triées par priorité puis due date (fallback historique)
+ *
+ * Concatène : manuellement ordonnées d'abord, puis défaut.
+ */
+export function sortTasksWithManualOrder(
+  tasks: WithId<Task>[],
+): WithId<Task>[] {
+  const manual: WithId<Task>[] = [];
+  const auto: WithId<Task>[] = [];
+  for (const t of tasks) {
+    if (typeof t.manualOrder === "number") manual.push(t);
+    else auto.push(t);
+  }
+  manual.sort(
+    (a, b) => (a.manualOrder as number) - (b.manualOrder as number),
+  );
+  return [...manual, ...sortByPriorityThenDue(auto)];
+}
