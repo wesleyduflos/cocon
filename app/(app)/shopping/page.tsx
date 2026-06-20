@@ -1,8 +1,6 @@
 "use client";
 
 import {
-  ChevronDown,
-  ChevronUp,
   History,
   Plus,
   ShoppingCart,
@@ -13,6 +11,8 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 
 import { useToast } from "@/components/shared/toast-provider";
+import { QuantityPill } from "@/components/shopping/quantity-pill";
+import { RayonBandeau } from "@/components/shopping/rayon-bandeau";
 import { useAuth } from "@/hooks/use-auth";
 import { useCurrentHousehold } from "@/hooks/use-household";
 import {
@@ -44,22 +44,6 @@ const RAYON_ORDER: ShoppingRayon[] = [
   "Animalerie",
   "Autre",
 ];
-
-const RAYON_EMOJI: Record<ShoppingRayon, string> = {
-  "Fruits & légumes": "🥬",
-  Boulangerie: "🥖",
-  Viandes: "🥩",
-  Poisson: "🐟",
-  "Produits laitiers": "🥛",
-  Frais: "❄️",
-  Conserves: "🥫",
-  Épicerie: "🍝",
-  Boissons: "🥤",
-  Hygiène: "🧴",
-  Maison: "🧹",
-  Animalerie: "🐾",
-  Autre: "📦",
-};
 
 export default function ShoppingPage() {
   const { user } = useAuth();
@@ -309,50 +293,36 @@ export default function ShoppingPage() {
             </p>
           </div>
         ) : (
-          <section className="flex flex-col gap-2.5">
-            <h2 className="text-[0.6875rem] uppercase tracking-[0.12em] text-muted-foreground">
-              Par rayon
-            </h2>
-            <div className="flex flex-col gap-2">
-              {RAYON_ORDER.filter(
-                (r) => (byRayon.get(r)?.length ?? 0) > 0,
-              ).map((r) => {
-                const list = byRayon.get(r) ?? [];
-                const open = isExpanded(r);
-                return (
-                  <article
-                    key={r}
-                    className="rounded-[14px] border border-border bg-surface overflow-hidden"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => toggleRayon(r)}
-                      className="w-full flex items-center justify-between px-4 py-3 hover:bg-surface-elevated"
-                    >
-                      <span className="flex items-center gap-2">
-                        <span className="text-[18px]">{RAYON_EMOJI[r]}</span>
-                        <span className="text-[14px] font-medium">{r}</span>
-                        <span className="text-[12px] text-muted-foreground">
-                          · {list.filter((i) => i.status === "pending").length}
-                          {list.some((i) => i.status === "bought")
-                            ? `/${list.length}`
-                            : ""}
-                        </span>
-                      </span>
-                      {open ? (
-                        <ChevronUp size={16} />
-                      ) : (
-                        <ChevronDown size={16} />
-                      )}
-                    </button>
-                    {open ? (
-                      <ul className="border-t border-border-subtle">
-                        {list.map((item) => {
-                          const isBought = item.status === "bought";
-                          return (
+          <section className="flex flex-col gap-3 -mx-5">
+            {RAYON_ORDER.filter(
+              (r) => (byRayon.get(r)?.length ?? 0) > 0,
+            ).map((r) => {
+              const list = byRayon.get(r) ?? [];
+              const pendingInRayon = list.filter(
+                (i) => i.status === "pending",
+              ).length;
+              const hasBought = list.some((i) => i.status === "bought");
+              const countLabel = hasBought
+                ? `${pendingInRayon}/${list.length}`
+                : `${list.length} article${list.length > 1 ? "s" : ""}`;
+              const open = isExpanded(r);
+              return (
+                <article key={r} className="flex flex-col">
+                  <RayonBandeau
+                    rayon={r}
+                    count={pendingInRayon}
+                    countLabel={countLabel}
+                    onToggle={() => toggleRayon(r)}
+                    expanded={open}
+                  />
+                  {open ? (
+                    <ul className="flex flex-col px-4">
+                      {list.map((item) => {
+                        const isBought = item.status === "bought";
+                        return (
                           <li
                             key={item.id}
-                            className={`flex items-center gap-3 px-4 py-2.5 border-b border-border-subtle last:border-b-0 ${
+                            className={`flex items-center gap-2.5 py-3 border-b border-[rgba(67,42,31,0.4)] last:border-b-0 ${
                               isBought ? "opacity-50" : ""
                             }`}
                           >
@@ -378,40 +348,32 @@ export default function ShoppingPage() {
                               className="flex-1 flex items-center gap-2 min-w-0"
                             >
                               {item.emoji ? (
-                                <span className="text-[16px]">{item.emoji}</span>
+                                <span className="text-[16px] shrink-0">
+                                  {item.emoji}
+                                </span>
                               ) : null}
                               <span
-                                className={`text-[14px] truncate ${
+                                className={`font-sans text-[15px] font-medium truncate ${
                                   isBought
                                     ? "line-through text-muted-foreground"
-                                    : ""
+                                    : "text-foreground"
                                 }`}
                               >
                                 {item.name}
-                                {item.quantity && item.quantity > 1 ? (
-                                  <span className="text-muted-foreground ml-1">
-                                    ×{item.quantity}
-                                    {item.unit ? ` ${item.unit}` : ""}
-                                  </span>
-                                ) : null}
                               </span>
-                              {item.fromQuickAdd ? (
-                                <span
-                                  className="text-[10px] text-primary"
-                                  aria-label="Depuis la grille essentiels"
-                                >
-                                  ★
-                                </span>
-                              ) : null}
                               {item.notes ? (
                                 <span
                                   aria-label="Note contextuelle"
-                                  className="text-[12px]"
+                                  className="text-[12px] shrink-0"
                                 >
                                   💬
                                 </span>
                               ) : null}
                             </Link>
+                            <QuantityPill
+                              quantity={item.quantity ?? 1}
+                              unit={item.unit}
+                            />
                             <button
                               type="button"
                               onClick={(e) => {
@@ -424,14 +386,13 @@ export default function ShoppingPage() {
                               <X size={14} />
                             </button>
                           </li>
-                          );
-                        })}
-                      </ul>
-                    ) : null}
-                  </article>
-                );
-              })}
-            </div>
+                        );
+                      })}
+                    </ul>
+                  ) : null}
+                </article>
+              );
+            })}
           </section>
         )}
       </div>
