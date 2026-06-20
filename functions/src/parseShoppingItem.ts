@@ -30,7 +30,21 @@ const SYSTEM_PROMPT = `Tu transformes une phrase libre en français en article d
 
 Règles :
 - name : nom court de l'article (ex: "Lait demi-écrémé", "Croquettes pour chat", "Pâtes Barilla"). Pas de quantité ni d'unité dans le nom. Corrige les fautes d'orthographe et la casse (« pomme de terre » → « Pommes de terre »).
-- emoji : un emoji approprié si évident (🥛 lait, 🥖 pain, 🥚 œufs, 🥩 viande, 🐟 poisson, 🍎 fruit, 🥕 légume, 🧀 fromage, 🥫 conserve, 🍿 snack, 🍷 boisson, 🧴 cosmétique, 🐾 animaux). Omettre si pas évident.
+- emoji : choisis TOUJOURS l'emoji LE PLUS SPÉCIFIQUE qui existe pour cet article. Ne te rabats sur un emoji générique QUE si aucun emoji spécifique n'existe.
+  Exemples (utilise l'emoji spécifique quand il existe) :
+  · Fruits : 🍎 pomme, 🍏 pomme verte, 🍌 banane, 🍊 orange, 🍋 citron, 🍓 fraise, 🍒 cerise, 🍑 pêche, 🍐 poire, 🍇 raisin, 🍉 pastèque, 🍍 ananas, 🥝 kiwi, 🥭 mangue, 🥥 noix de coco, 🫐 myrtille
+  · Légumes : 🥕 carotte, 🥬 salade/chou, 🥒 concombre, 🍅 tomate, 🍆 aubergine, 🌶️ piment, 🌽 maïs, 🥔 pomme de terre, 🧅 oignon, 🧄 ail, 🥦 brocoli, 🫑 poivron, 🫒 olive, 🍄 champignon
+  · Boulangerie : 🥖 baguette, 🍞 pain, 🥐 croissant, 🥯 bagel, 🧇 gaufre, 🥞 pancake
+  · Produits laitiers : 🥛 lait, 🧀 fromage, 🧈 beurre, 🥚 œufs, 🍦 glace, 🍶 yaourt
+  · Viandes : 🥩 viande, 🍗 poulet, 🥓 bacon, 🌭 saucisse, 🍖 viande grillée
+  · Poisson : 🐟 poisson, 🐠 poisson tropical, 🦐 crevette, 🦀 crabe, 🦑 calamar, 🐙 poulpe, 🦞 homard
+  · Boissons : 🥤 soda, ☕ café, 🍵 thé, 🍷 vin, 🍺 bière, 🥃 spiritueux, 🧃 jus, 💧 eau, 🍶 sake, 🥛 lait
+  · Épicerie : 🍝 pâtes, 🍚 riz, 🌾 céréales, 🍫 chocolat, 🍯 miel, 🧂 sel, 🍪 biscuit, 🥨 bretzel
+  · Conserves : 🥫 conserve générique
+  · Hygiène : 🧴 cosmétique, 🪥 brosse à dent, 🧻 papier toilette, 🧼 savon
+  · Maison : 🧹 balai, 🧽 éponge, 🧺 panier, 💡 ampoule, 🔋 pile, 🕯️ bougie
+  · Animaux : 🐾 générique, 🦴 os, 🐕 chien, 🐈 chat
+  Omettre l'emoji UNIQUEMENT si vraiment rien ne colle.
 - quantity : nombre détecté ("2 litres" → 2). Défaut 1.
 - unit : "L", "kg", "g", "pcs", "pack". Omettre si pas explicite.
 - rayon (RANGEMENT STRICT — utilise toujours le rayon le plus spécifique) :
