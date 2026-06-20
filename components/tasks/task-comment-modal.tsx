@@ -2,7 +2,8 @@
 
 import { X } from "lucide-react";
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 interface TaskCommentModalProps {
   taskId: string;
@@ -19,6 +20,12 @@ export function TaskCommentModal({
   notes,
   onClose,
 }: TaskCommentModalProps) {
+  // Portal vers document.body — sinon un ancêtre avec `transform`/`filter`
+  // crée un containing block et casse `position: fixed` (cas du
+  // <SwipeableTask> du bloc I).
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -27,7 +34,9 @@ export function TaskCommentModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  return (
+  if (!mounted) return null;
+
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
       onClick={onClose}
@@ -96,6 +105,7 @@ export function TaskCommentModal({
           </Link>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
