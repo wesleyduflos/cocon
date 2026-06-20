@@ -15,10 +15,14 @@ import {
   isOverdue,
   isRecentlyCompleted,
 } from "@/lib/firebase/firestore";
+import {
+  countTasksMatching,
+  filterTasks,
+  filtersEqual,
+  type TaskFilter,
+} from "@/lib/tasks/filters";
 import { sortByPriorityThenDue } from "@/lib/tasks/sort";
 import type { Task, WithId } from "@/types/cocon";
-
-type Filter = "all" | "me" | "other" | "unassigned";
 
 function Section({
   title,
@@ -72,21 +76,36 @@ export default function TasksPage() {
   const { household } = useCurrentHousehold();
   const { tasks, loading } = useTasks(household?.id);
 
-  const [filter, setFilter] = useState<Filter>("all");
+  const [activeFilters, setActiveFilters] = useState<TaskFilter[]>([]);
   const { members } = useMembers(household?.memberIds);
   const otherMember = useMemo(
     () => members.find((m) => m.uid !== user?.uid) ?? null,
     [members, user?.uid],
   );
 
-  const filtered = useMemo(() => {
-    if (filter === "all") return tasks;
-    if (filter === "me")
-      return tasks.filter((t) => t.assigneeId === user?.uid);
-    if (filter === "other")
-      return tasks.filter((t) => t.assigneeId === otherMember?.uid);
-    return tasks.filter((t) => !t.assigneeId);
-  }, [tasks, filter, user?.uid, otherMember]);
+  const filtered = useMemo(
+    () => filterTasks(tasks, activeFilters),
+    [tasks, activeFilters],
+  );
+
+  const toggleFilter = (f: TaskFilter) => {
+    setActiveFilters((prev) =>
+      prev.some((p) => filtersEqual(p, f))
+        ? prev.filter((p) => !filtersEqual(p, f))
+        : [...prev, f],
+    );
+  };
+
+  const isFilterActive = (f: TaskFilter) =>
+    activeFilters.some((p) => filtersEqual(p, f));
+
+  const meFilter: TaskFilter | null = user
+    ? { kind: "me", uid: user.uid }
+    : null;
+  const otherFilter: TaskFilter | null = otherMember
+    ? { kind: "member", uid: otherMember.uid }
+    : null;
+  const unassignedFilter: TaskFilter = { kind: "unassigned" };
 
   const groups = useMemo(() => {
     const now = new Date();
@@ -167,29 +186,31 @@ export default function TasksPage() {
         </header>
 
         <div className="flex gap-2 overflow-x-auto -mx-5 px-5 scrollbar-hide">
-        <FilterChip
-          active={filter === "all"}
-          onClick={() => setFilter("all")}
-        >
-          Toutes
-        </FilterChip>
-        <FilterChip active={filter === "me"} onClick={() => setFilter("me")}>
-          À moi
-        </FilterChip>
-        {otherMember ? (
+          {meFilter ? (
+            <FilterChip
+              active={isFilterActive(meFilter)}
+              onClick={() => toggleFilter(meFilter)}
+              count={countTasksMatching(tasks, meFilter)}
+            >
+              À moi
+            </FilterChip>
+          ) : null}
+          {otherFilter && otherMember ? (
+            <FilterChip
+              active={isFilterActive(otherFilter)}
+              onClick={() => toggleFilter(otherFilter)}
+              count={countTasksMatching(tasks, otherFilter)}
+            >
+              À {otherMember.displayName}
+            </FilterChip>
+          ) : null}
           <FilterChip
-            active={filter === "other"}
-            onClick={() => setFilter("other")}
+            active={isFilterActive(unassignedFilter)}
+            onClick={() => toggleFilter(unassignedFilter)}
+            count={countTasksMatching(tasks, unassignedFilter)}
           >
-            À {otherMember.displayName}
+            Non assignées
           </FilterChip>
-        ) : null}
-        <FilterChip
-          active={filter === "unassigned"}
-          onClick={() => setFilter("unassigned")}
-        >
-          Non assignées
-        </FilterChip>
         </div>
       </div>
 
@@ -204,18 +225,26 @@ export default function TasksPage() {
             <span className="greeting-gradient">aujourd&apos;hui</span>
           </h2>
           <p className="text-[14px] text-muted-foreground max-w-[260px] leading-[1.5]">
-            {filter === "all"
+            {activeFilters.length === 0
               ? "Profite — c'est rare. On garde tout en mémoire pour demain."
-              : "Aucune tâche dans ce filtre."}
+              : "Aucune tâche ne correspond aux filtres actifs."}
           </p>
-          {filter === "all" ? (
+          {activeFilters.length === 0 ? (
             <Link
               href="/tasks/new"
               className="rounded-[12px] bg-primary text-primary-foreground font-sans font-semibold text-[15px] px-[18px] py-3 shadow-[0_0_20px_rgba(255,107,36,0.35)] hover:bg-[var(--primary-hover)] transition-colors mt-2"
             >
               Créer une tâche →
             </Link>
-          ) : null}
+          ) : (
+            <button
+              type="button"
+              onClick={() => setActiveFilters([])}
+              className="rounded-[12px] border border-border bg-surface text-foreground font-sans font-medium text-[13px] px-4 py-2 hover:bg-surface-elevated transition-colors mt-2"
+            >
+              Effacer les filtres
+            </button>
+          )}
         </div>
       ) : household && user ? (
         <div className="flex flex-col gap-6">
@@ -259,10 +288,12 @@ export default function TasksPage() {
 function FilterChip({
   active,
   onClick,
+  count,
   children,
 }: {
   active: boolean;
   onClick: () => void;
+  count?: number;
   children: React.ReactNode;
 }) {
   return (
@@ -277,6 +308,15 @@ function FilterChip({
       }`}
     >
       {children}
+      {typeof count === "number" ? (
+        <span
+          className={`ml-1.5 text-[11px] font-semibold ${
+            active ? "opacity-80" : "opacity-70"
+          }`}
+        >
+          {count}
+        </span>
+      ) : null}
     </button>
   );
 }
