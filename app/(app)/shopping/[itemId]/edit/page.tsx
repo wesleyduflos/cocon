@@ -12,6 +12,10 @@ import {
   shoppingItemDoc,
   updateShoppingItem,
 } from "@/lib/firebase/firestore";
+import {
+  normalizeQuantityInput,
+  sanitizeQuantityKeystroke,
+} from "@/lib/shopping/quantity";
 import type { ShoppingItem, ShoppingRayon, WithId } from "@/types/cocon";
 
 const RAYONS: ShoppingRayon[] = [
@@ -73,7 +77,7 @@ export default function EditShoppingItemPage() {
 
   const [name, setName] = useState("");
   const [emoji, setEmoji] = useState("");
-  const [quantity, setQuantity] = useState(1);
+  const [quantity, setQuantity] = useState<string>("1");
   const [unit, setUnit] = useState("");
   const [rayon, setRayon] = useState<ShoppingRayon>("Épicerie");
   const [notes, setNotes] = useState("");
@@ -98,7 +102,7 @@ export default function EditShoppingItemPage() {
         if (!hydrated) {
           setName(data.name);
           setEmoji(data.emoji ?? "");
-          setQuantity(data.quantity);
+          setQuantity(String(data.quantity));
           setUnit(data.unit ?? "");
           setRayon(data.rayon);
           setNotes(data.notes ?? "");
@@ -123,7 +127,7 @@ export default function EditShoppingItemPage() {
       await updateShoppingItem(household.id, item.id, {
         name: name.trim(),
         emoji: emoji.trim() || undefined,
-        quantity: Math.max(1, quantity),
+        quantity: normalizeQuantityInput(quantity),
         unit: unit || undefined,
         rayon,
         notes: notes.trim() || undefined,
@@ -257,10 +261,14 @@ export default function EditShoppingItemPage() {
             </label>
             <input
               id="item-quantity"
-              type="number"
-              min={1}
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
               value={quantity}
-              onChange={(e) => setQuantity(Number(e.target.value))}
+              onChange={(e) =>
+                setQuantity(sanitizeQuantityKeystroke(e.target.value))
+              }
+              onFocus={(e) => e.currentTarget.select()}
               disabled={submitting || deleting}
               className="rounded-[12px] border border-border bg-surface px-4 py-2.5 text-[15px] focus:outline-none focus:border-primary"
             />

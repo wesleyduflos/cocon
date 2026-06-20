@@ -9,6 +9,10 @@ import { useAuth } from "@/hooks/use-auth";
 import { useCurrentHousehold } from "@/hooks/use-household";
 import { parseShoppingItemNatural } from "@/lib/ai/parse-shopping";
 import { createShoppingItem } from "@/lib/firebase/firestore";
+import {
+  normalizeQuantityInput,
+  sanitizeQuantityKeystroke,
+} from "@/lib/shopping/quantity";
 import type { ShoppingRayon } from "@/types/cocon";
 
 const RAYONS: ShoppingRayon[] = [
@@ -65,7 +69,7 @@ export default function NewShoppingItemPage() {
 
   const [name, setName] = useState("");
   const [emoji, setEmoji] = useState("");
-  const [quantity, setQuantity] = useState(1);
+  const [quantity, setQuantity] = useState<string>("1");
   const [unit, setUnit] = useState("");
   const [rayon, setRayon] = useState<ShoppingRayon>("Épicerie");
   const [notes, setNotes] = useState("");
@@ -85,7 +89,7 @@ export default function NewShoppingItemPage() {
       const ai = await parseShoppingItemNatural(naturalText.trim());
       setName(ai.name);
       if (ai.emoji) setEmoji(ai.emoji);
-      if (ai.quantity) setQuantity(ai.quantity);
+      if (ai.quantity) setQuantity(String(ai.quantity));
       if (ai.unit) setUnit(ai.unit);
       if (ai.rayon) setRayon(ai.rayon);
       const filled =
@@ -119,7 +123,7 @@ export default function NewShoppingItemPage() {
       await createShoppingItem(household.id, {
         name: name.trim(),
         emoji: emoji.trim() || undefined,
-        quantity,
+        quantity: normalizeQuantityInput(quantity),
         unit: unit || undefined,
         rayon,
         notes: notes.trim() || undefined,
@@ -281,10 +285,14 @@ export default function NewShoppingItemPage() {
             </label>
             <input
               id="item-qty"
-              type="number"
-              min={1}
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
               value={quantity}
-              onChange={(e) => setQuantity(Math.max(1, Number(e.target.value)))}
+              onChange={(e) =>
+                setQuantity(sanitizeQuantityKeystroke(e.target.value))
+              }
+              onFocus={(e) => e.currentTarget.select()}
               disabled={submitting}
               className="rounded-[10px] border border-border bg-surface px-3 py-2 text-[14px] focus:outline-none focus:border-primary"
             />
