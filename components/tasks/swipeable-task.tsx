@@ -9,7 +9,7 @@ import {
 } from "react";
 
 import { useToast } from "@/components/shared/toast-provider";
-import { updateTask } from "@/lib/firebase/firestore";
+import { setTaskDueDate } from "@/lib/firebase/firestore";
 import {
   dueDateToday,
   dueDateTomorrow,
@@ -55,7 +55,7 @@ export function SwipeableTask({
   const [animating, setAnimating] = useState(false);
   const { showToast } = useToast();
 
-  const isSwipeable = !disabled && !task.dueDate;
+  const isSwipeable = !disabled;
 
   function vibrate(ms: number) {
     if (typeof navigator !== "undefined" && "vibrate" in navigator) {
@@ -124,18 +124,19 @@ export function SwipeableTask({
   }
 
   async function applySwipe(direction: "right" | "left") {
+    const previousDue = task.dueDate ?? null;
     const due =
       direction === "right" ? dueDateToday() : dueDateTomorrow();
-    await updateTask(householdId, task.id, { dueDate: due });
+    await setTaskDueDate(householdId, task.id, due);
     vibrate(50);
+    const verb = previousDue ? "Reportée à" : "Ajoutée à";
+    const when = direction === "right" ? "aujourd'hui" : "demain";
     showToast({
-      message: `Ajoutée à ${direction === "right" ? "aujourd'hui" : "demain"}`,
+      message: `${verb} ${when}`,
       action: {
         label: "Annuler",
         onClick: async () => {
-          await updateTask(householdId, task.id, {
-            dueDate: undefined,
-          });
+          await setTaskDueDate(householdId, task.id, previousDue);
         },
       },
     });

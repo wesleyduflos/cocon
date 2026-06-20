@@ -798,6 +798,23 @@ export async function updateTask(
   });
 }
 
+/**
+ * Sprint 6 — bloc I. Définit ou supprime la dueDate d'une tâche. Utilisé
+ * par le swipe pour pouvoir annuler vers « pas d'échéance » (sinon
+ * `dueDate: undefined` est ignoré par Firestore avec
+ * ignoreUndefinedProperties).
+ */
+export async function setTaskDueDate(
+  householdId: string,
+  taskId: string,
+  dueDate: Timestamp | null,
+): Promise<void> {
+  await updateDoc(householdTaskDoc(householdId, taskId), {
+    dueDate: dueDate ?? deleteField(),
+    updatedAt: serverTimestamp() as unknown as Timestamp,
+  });
+}
+
 /** Suppression définitive d'une tâche. */
 export async function deleteTask(
   householdId: string,
