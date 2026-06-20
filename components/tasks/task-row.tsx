@@ -1,10 +1,11 @@
 "use client";
 
-import { Repeat, Star } from "lucide-react";
+import { MessageSquare, Repeat, Star } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
 import { useToast } from "@/components/shared/toast-provider";
+import { TaskCommentModal } from "@/components/tasks/task-comment-modal";
 import {
   completeRecurringTask,
   completeTask,
@@ -41,8 +42,11 @@ export function TaskRow({
 }: TaskRowProps) {
   const { showToast } = useToast();
   const [pending, setPending] = useState(false);
+  const [commentOpen, setCommentOpen] = useState(false);
   const due = formatDueLabel(task);
   const isDone = task.status === "done";
+  const hasComment =
+    Boolean(task.description?.trim()) || Boolean(task.notes?.trim());
 
   async function handleToggle() {
     if (pending) return;
@@ -130,7 +134,7 @@ export function TaskRow({
         </span>
       </button>
       <Link
-        href={`/tasks/${task.id}`}
+        href={`/tasks/${task.id}/edit`}
         className={`flex-1 flex flex-col min-w-0 ${linkPad}`}
       >
         <span
@@ -161,6 +165,30 @@ export function TaskRow({
           </span>
         ) : null}
       </Link>
+      {hasComment ? (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setCommentOpen(true);
+          }}
+          aria-label="Voir le commentaire"
+          title="Voir le commentaire"
+          className={`shrink-0 w-8 h-8 mr-2 rounded-[8px] flex items-center justify-center text-muted-foreground hover:bg-surface-elevated hover:text-foreground transition-colors`}
+        >
+          <MessageSquare size={14} />
+        </button>
+      ) : null}
+      {commentOpen ? (
+        <TaskCommentModal
+          taskId={task.id}
+          title={task.title}
+          description={task.description}
+          notes={task.notes}
+          onClose={() => setCommentOpen(false)}
+        />
+      ) : null}
     </div>
   );
 }
