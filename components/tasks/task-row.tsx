@@ -153,6 +153,14 @@ export function TaskRow({
             isDone ? "line-through text-muted-foreground" : "text-foreground"
           }`}
         >
+          {task.emoji ? (
+            <span
+              className={`shrink-0 ${compact ? "text-[14px]" : "text-[16px]"} leading-none`}
+              aria-hidden
+            >
+              {task.emoji}
+            </span>
+          ) : null}
           {task.priority ? (
             <Star
               size={iconSize}

@@ -159,6 +159,10 @@ export interface Task {
    *  depuis la bibliothèque /maintenance. Permet de savoir si un
    *  preset est déjà activé. */
   maintenancePresetId?: string;
+  /** Sprint 7 — emoji affiché en tête de la ligne dans /tasks.
+   *  Posé à l'activation d'un preset d'entretien (et resynchronisé
+   *  lors d'un sync défauts). Optionnel : aucune décoration sinon. */
+  emoji?: string;
   createdAt: Timestamp;
   createdBy: string;
   updatedAt: Timestamp;

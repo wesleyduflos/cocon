@@ -1,6 +1,15 @@
-import { getDocs, limit, query } from "firebase/firestore";
+import {
+  getDocs,
+  limit,
+  query,
+  serverTimestamp,
+  updateDoc,
+  where,
+  type Timestamp,
+} from "firebase/firestore";
 
 import {
+  householdTasksCollection,
   maintenancePresetsCollection,
   setMaintenancePreset,
 } from "@/lib/firebase/firestore";
@@ -30,22 +39,47 @@ export async function seedDefaultPresetsIfEmpty(
 
 /**
  * Sprint 7 — UPSERT TOUS les presets par défaut. Écrase les valeurs
- * existantes sur les seedId connus, et crée les manquants.
+ * existantes sur les seedId connus, et crée les manquants. Backfille
+ * aussi l'emoji + le title sur les Task actives associées (qui ne
+ * connaissent pas forcément les nouvelles valeurs si elles ont été
+ * créées avant le sprint emoji).
  *
- * À utiliser via un bouton « Synchroniser depuis les défauts » dans
- * l'UI quand l'utilisateur veut réinitialiser ses presets standards
- * (sans toucher aux customs, qui n'ont pas de seedId).
- *
- * Retourne le nombre de presets écrits.
+ * Retourne `{ presets: N, tasksUpdated: M }`.
  */
 export async function forceResyncDefaultPresets(
   householdId: string,
   userId: string,
-): Promise<number> {
+): Promise<{ presets: number; tasksUpdated: number }> {
   for (const preset of DEFAULT_MAINTENANCE_PRESETS) {
     await writeOne(householdId, preset, userId);
   }
-  return DEFAULT_MAINTENANCE_PRESETS.length;
+  const tasksUpdated = await backfillActiveTasks(householdId);
+  return { presets: DEFAULT_MAINTENANCE_PRESETS.length, tasksUpdated };
+}
+
+async function backfillActiveTasks(householdId: string): Promise<number> {
+  let count = 0;
+  for (const preset of DEFAULT_MAINTENANCE_PRESETS) {
+    const snap = await getDocs(
+      query(
+        householdTasksCollection(householdId),
+        where("maintenancePresetId", "==", preset.seedId),
+        where("status", "==", "pending"),
+      ),
+    );
+    for (const d of snap.docs) {
+      await updateDoc(d.ref, {
+        emoji: preset.emoji,
+        title: preset.title,
+        description: preset.hint,
+        recurrenceRule: preset.recurrenceRule,
+        priority: preset.priority ?? false,
+        updatedAt: serverTimestamp() as unknown as Timestamp,
+      });
+      count++;
+    }
+  }
+  return count;
 }
 
 async function writeOne(

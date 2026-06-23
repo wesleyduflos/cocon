@@ -152,9 +152,16 @@ export default function MaintenancePage() {
       return;
     setResyncing(true);
     try {
-      const n = await forceResyncDefaultPresets(household.id, user.uid);
+      const result = await forceResyncDefaultPresets(
+        household.id,
+        user.uid,
+      );
+      const taskPart =
+        result.tasksUpdated > 0
+          ? ` · ${result.tasksUpdated} tâche${result.tasksUpdated > 1 ? "s" : ""} rafraîchie${result.tasksUpdated > 1 ? "s" : ""}`
+          : "";
       showToast({
-        message: `${n} presets synchronisés depuis les défauts`,
+        message: `${result.presets} presets synchronisés${taskPart}`,
       });
     } catch (err) {
       showToast({

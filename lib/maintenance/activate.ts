@@ -41,6 +41,7 @@ export async function activateMaintenancePreset(
     dueDate,
     recurrenceRule: preset.recurrenceRule,
     maintenancePresetId: preset.id,
+    emoji: preset.emoji,
   });
 }
 

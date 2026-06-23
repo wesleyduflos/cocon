@@ -677,6 +677,8 @@ export interface CreateTaskInput {
   /** Sprint 7 — référence vers un preset d'entretien si la tâche provient
    *  de la bibliothèque /maintenance. */
   maintenancePresetId?: string;
+  /** Sprint 7 — emoji affiché en tête de la ligne dans /tasks. */
+  emoji?: string;
 }
 
 /**
@@ -699,6 +701,7 @@ export async function createTask(
     recurrenceRule: input.recurrenceRule,
     notes: input.notes,
     maintenancePresetId: input.maintenancePresetId,
+    emoji: input.emoji,
     createdBy: input.createdBy,
     createdAt: serverTimestamp() as unknown as Timestamp,
     updatedAt: serverTimestamp() as unknown as Timestamp,
