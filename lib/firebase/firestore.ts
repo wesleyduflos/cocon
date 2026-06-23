@@ -671,6 +671,9 @@ export interface CreateTaskInput {
   recurrenceRule?: string;
   priority?: boolean;
   notes?: string;
+  /** Sprint 7 — référence vers un preset d'entretien si la tâche provient
+   *  de la bibliothèque /maintenance. */
+  maintenancePresetId?: string;
 }
 
 /**
@@ -692,6 +695,7 @@ export async function createTask(
     dueDate: input.dueDate,
     recurrenceRule: input.recurrenceRule,
     notes: input.notes,
+    maintenancePresetId: input.maintenancePresetId,
     createdBy: input.createdBy,
     createdAt: serverTimestamp() as unknown as Timestamp,
     updatedAt: serverTimestamp() as unknown as Timestamp,

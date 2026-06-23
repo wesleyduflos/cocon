@@ -4,6 +4,7 @@ import {
   CheckSquare,
   NotebookPen,
   Settings,
+  Wrench,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -35,6 +36,13 @@ const CARDS: Card[] = [
     icon: CheckSquare,
     title: "Préparations",
     subtitle: "Routines & checklists",
+    available: true,
+  },
+  {
+    href: "/maintenance",
+    icon: Wrench,
+    title: "Entretien",
+    subtitle: "Poubelles, filtres, ramonage",
     available: true,
   },
   {

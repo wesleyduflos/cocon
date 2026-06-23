@@ -155,6 +155,10 @@ export interface Task {
    *  « Ordonner ». Plus bas = en haut de section. Les tâches sans
    *  manualOrder restent triées par défaut (priorité puis due). */
   manualOrder?: number;
+  /** Sprint 7 — id du preset d'entretien si la tâche a été créée
+   *  depuis la bibliothèque /maintenance. Permet de savoir si un
+   *  preset est déjà activé. */
+  maintenancePresetId?: string;
   createdAt: Timestamp;
   createdBy: string;
   updatedAt: Timestamp;

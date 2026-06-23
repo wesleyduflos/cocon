@@ -18,7 +18,7 @@ import {
 } from "@/lib/firebase/firestore";
 import type { TaskEffort } from "@/types/cocon";
 
-const CATEGORIES = ["Maison", "Animaux", "Voiture", "Cuisine"];
+const CATEGORIES = ["Maison", "Animaux", "Voiture", "Cuisine", "Entretien"];
 const EFFORTS: Array<{ value: TaskEffort; label: string }> = [
   { value: "quick", label: "Rapide" },
   { value: "normal", label: "Normal" },
