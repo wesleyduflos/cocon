@@ -165,6 +165,37 @@ export interface Task {
 }
 
 /**
+ * Sprint 7 — Preset d'entretien stocké par cocon. Initialement seedé
+ * avec les 32 presets par défaut, l'utilisateur peut ensuite modifier,
+ * supprimer, en créer des custom.
+ */
+export type MaintenanceCategory =
+  | "trash"
+  | "appliance"
+  | "filter"
+  | "seasonal"
+  | "safety"
+  | "exterior";
+
+export interface MaintenancePreset {
+  category: MaintenanceCategory;
+  title: string;
+  emoji: string;
+  hint: string;
+  /** RRULE iCal — voir lib/recurrence.ts pour les exemples valides. */
+  recurrenceRule: string;
+  frequencyLabel: string;
+  priority?: boolean;
+  /** true si l'utilisateur l'a créé lui-même (vs preset par défaut). */
+  custom?: boolean;
+  /** Position d'affichage dans sa catégorie. ASC. */
+  position?: number;
+  createdAt: Timestamp;
+  createdBy: string;
+  updatedAt: Timestamp;
+}
+
+/**
  * Sprint 6 — bloc F. Sous-tâche d'une tâche parente. Hérite
  * implicitement de la parente (assignee, dueDate, category) — non
  * dupliqué dans le document, lu depuis la tâche parente côté UI.

@@ -1,9 +1,17 @@
-import { Timestamp } from "firebase/firestore";
+import {
+  Timestamp,
+  getDocs,
+  query,
+  where,
+} from "firebase/firestore";
 
-import { createTask } from "@/lib/firebase/firestore";
+import {
+  createTask,
+  deleteTask,
+  householdTasksCollection,
+} from "@/lib/firebase/firestore";
 import { getNextOccurrence } from "@/lib/recurrence";
-
-import type { MaintenancePreset } from "./presets";
+import type { MaintenancePreset, WithId } from "@/types/cocon";
 
 /**
  * Sprint 7 — instancie un preset en tâche récurrente.
@@ -18,13 +26,10 @@ import type { MaintenancePreset } from "./presets";
  */
 export async function activateMaintenancePreset(
   householdId: string,
-  preset: MaintenancePreset,
+  preset: WithId<MaintenancePreset>,
   createdBy: string,
 ): Promise<string> {
   const now = new Date();
-  // Cherche la prochaine occurrence après aujourd'hui (exclusif) — sinon
-  // la dueDate serait dans le passé pour les RRULE WEEKLY si on tombe
-  // pile sur le bon jour.
   const next = getNextOccurrence(preset.recurrenceRule, now, now);
   const dueDate = next ? Timestamp.fromDate(next) : undefined;
   return createTask(householdId, {
@@ -37,4 +42,24 @@ export async function activateMaintenancePreset(
     recurrenceRule: preset.recurrenceRule,
     maintenancePresetId: preset.id,
   });
+}
+
+/**
+ * Sprint 7 — désactive un preset (= supprime la / les Task pending
+ * associées). Retourne le nombre de tâches supprimées.
+ */
+export async function deactivateMaintenancePreset(
+  householdId: string,
+  presetId: string,
+): Promise<number> {
+  const snap = await getDocs(
+    query(
+      householdTasksCollection(householdId),
+      where("maintenancePresetId", "==", presetId),
+      where("status", "==", "pending"),
+    ),
+  );
+  const deletions = snap.docs.map((d) => deleteTask(householdId, d.id));
+  await Promise.all(deletions);
+  return deletions.length;
 }

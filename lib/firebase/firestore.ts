@@ -46,6 +46,7 @@ import {
   type ShoppingRayon,
   type StockItem,
   type StockLevel,
+  type MaintenancePreset,
   type Subtask,
   type Suggestion,
   type Task,
@@ -80,6 +81,8 @@ export const householdConverter = makeConverter<Household>();
 export const householdMemberConverter = makeConverter<HouseholdMember>();
 export const taskConverter = makeConverter<Task>();
 export const subtaskConverter = makeConverter<Subtask>();
+export const maintenancePresetConverter =
+  makeConverter<MaintenancePreset>();
 export const invitationConverter = makeConverter<Invitation>();
 export const inviteCodeConverter = makeConverter<InviteCode>();
 export const calendarEventConverter = makeConverter<CalendarEvent>();
@@ -825,6 +828,117 @@ export async function deleteTask(
   taskId: string,
 ): Promise<void> {
   await deleteDoc(householdTaskDoc(householdId, taskId));
+}
+
+/* ----------------------- Maintenance presets (sprint 7) ------------------ */
+
+export function maintenancePresetsCollection(
+  householdId: string,
+): CollectionReference<MaintenancePreset> {
+  return collection(
+    db,
+    "households",
+    householdId,
+    "maintenance-presets",
+  ).withConverter(maintenancePresetConverter);
+}
+
+export function maintenancePresetDoc(
+  householdId: string,
+  presetId: string,
+): DocumentReference<MaintenancePreset> {
+  return doc(
+    db,
+    "households",
+    householdId,
+    "maintenance-presets",
+    presetId,
+  ).withConverter(maintenancePresetConverter);
+}
+
+export interface CreateMaintenancePresetInput {
+  category: MaintenancePreset["category"];
+  title: string;
+  emoji: string;
+  hint: string;
+  recurrenceRule: string;
+  frequencyLabel: string;
+  priority?: boolean;
+  position?: number;
+  custom?: boolean;
+  createdBy: string;
+}
+
+export async function createMaintenancePreset(
+  householdId: string,
+  input: CreateMaintenancePresetInput,
+): Promise<string> {
+  const ref = await addDoc(maintenancePresetsCollection(householdId), {
+    category: input.category,
+    title: input.title,
+    emoji: input.emoji,
+    hint: input.hint,
+    recurrenceRule: input.recurrenceRule,
+    frequencyLabel: input.frequencyLabel,
+    priority: input.priority ?? false,
+    position: input.position ?? 99,
+    custom: input.custom ?? true,
+    createdBy: input.createdBy,
+    createdAt: serverTimestamp() as unknown as Timestamp,
+    updatedAt: serverTimestamp() as unknown as Timestamp,
+  });
+  return ref.id;
+}
+
+export async function setMaintenancePreset(
+  householdId: string,
+  presetId: string,
+  input: CreateMaintenancePresetInput,
+): Promise<void> {
+  await setDoc(maintenancePresetDoc(householdId, presetId), {
+    category: input.category,
+    title: input.title,
+    emoji: input.emoji,
+    hint: input.hint,
+    recurrenceRule: input.recurrenceRule,
+    frequencyLabel: input.frequencyLabel,
+    priority: input.priority ?? false,
+    position: input.position ?? 99,
+    custom: input.custom ?? false,
+    createdBy: input.createdBy,
+    createdAt: serverTimestamp() as unknown as Timestamp,
+    updatedAt: serverTimestamp() as unknown as Timestamp,
+  });
+}
+
+export async function updateMaintenancePreset(
+  householdId: string,
+  presetId: string,
+  patch: Partial<
+    Pick<
+      MaintenancePreset,
+      | "category"
+      | "title"
+      | "emoji"
+      | "hint"
+      | "recurrenceRule"
+      | "frequencyLabel"
+      | "priority"
+      | "position"
+    >
+  >,
+): Promise<void> {
+  await updateDoc(maintenancePresetDoc(householdId, presetId), {
+    ...patch,
+    updatedAt: serverTimestamp() as unknown as Timestamp,
+  });
+}
+
+export async function deleteMaintenancePreset(
+  householdId: string,
+  presetId: string,
+): Promise<void> {
+  await deleteDoc(maintenancePresetDoc(householdId, presetId));
 }
 
 /* ----------------------- Sous-tâches (sprint 6 — bloc F) ----------------- */

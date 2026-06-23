@@ -1,39 +1,13 @@
+import type { MaintenanceCategory, MaintenancePreset } from "@/types/cocon";
+
 /**
  * Sprint 7 — Bibliothèque d'entretien maison.
  *
- * Chaque preset décrit un entretien récurrent typique (sortir poubelles,
- * nettoyer filtre lave-vaisselle, ramonage...). Au tap « Activer », le
- * preset est instancié en `Task` avec catégorie « Entretien » + sa
- * `recurrenceRule` + l'emoji.
- *
- * Les presets sont hardcodés (pas en Firestore) — c'est une bibliothèque
- * partagée par tous les cocons. L'utilisateur peut customiser ensuite
- * la tâche créée comme n'importe quelle autre tâche.
+ * Les presets vivent dans Firestore par cocon. Cette constante sert
+ * uniquement de SEED à la première utilisation. L'utilisateur peut
+ * ensuite modifier, supprimer, ou créer ses propres presets depuis
+ * la page /maintenance.
  */
-
-export type MaintenanceCategory =
-  | "trash"
-  | "appliance"
-  | "filter"
-  | "seasonal"
-  | "safety"
-  | "exterior";
-
-export interface MaintenancePreset {
-  /** Identifiant stable utilisé pour lier une Task au preset. */
-  id: string;
-  category: MaintenanceCategory;
-  title: string;
-  emoji: string;
-  /** Phrase d'aide affichée sous le titre. */
-  hint: string;
-  /** RRULE iCal — voir lib/recurrence.ts pour les exemples valides. */
-  recurrenceRule: string;
-  /** Étiquette humaine de la fréquence (« Tous les mardis », « 1x / mois »). */
-  frequencyLabel: string;
-  /** Si true, la tâche créée est marquée prioritaire (sécurité, légal). */
-  priority?: boolean;
-}
 
 export const MAINTENANCE_CATEGORY_LABELS: Record<
   MaintenanceCategory,
@@ -56,169 +30,195 @@ export const MAINTENANCE_CATEGORY_ORDER: MaintenanceCategory[] = [
   "exterior",
 ];
 
-export const MAINTENANCE_PRESETS: MaintenancePreset[] = [
+/** Données du preset hors champs serveur (createdAt/updatedAt/createdBy). */
+export type MaintenancePresetSeed = Omit<
+  MaintenancePreset,
+  "createdAt" | "updatedAt" | "createdBy"
+> & {
+  /** Id stable utilisé comme docId — réservé aux presets de seed. */
+  seedId: string;
+};
+
+export const DEFAULT_MAINTENANCE_PRESETS: MaintenancePresetSeed[] = [
   // ---------- Poubelles & tri ----------
   {
-    id: "trash-grey",
+    seedId: "trash-grey",
     category: "trash",
     title: "Sortir poubelle grise",
     emoji: "🗑️",
     hint: "Ordures ménagères",
     recurrenceRule: "FREQ=WEEKLY;BYDAY=TU",
     frequencyLabel: "Tous les mardis",
+    position: 0,
   },
   {
-    id: "trash-yellow",
+    seedId: "trash-yellow",
     category: "trash",
     title: "Sortir poubelle jaune",
     emoji: "♻️",
     hint: "Emballages, papier, carton",
     recurrenceRule: "FREQ=WEEKLY;INTERVAL=2;BYDAY=MO",
     frequencyLabel: "Lundi · 1 sem / 2",
+    position: 1,
   },
   {
-    id: "trash-glass",
+    seedId: "trash-glass",
     category: "trash",
     title: "Sortir verre",
     emoji: "🍾",
     hint: "Bouteilles et bocaux",
     recurrenceRule: "FREQ=MONTHLY",
     frequencyLabel: "Une fois par mois",
+    position: 2,
   },
   {
-    id: "trash-bulky",
+    seedId: "trash-bulky",
     category: "trash",
     title: "Encombrants",
     emoji: "📦",
     hint: "Meubles, gros électroménager",
     recurrenceRule: "FREQ=MONTHLY;BYDAY=2SA",
     frequencyLabel: "2ᵉ samedi du mois",
+    position: 3,
   },
   {
-    id: "trash-compost",
+    seedId: "trash-compost",
     category: "trash",
     title: "Vider composteur",
     emoji: "🌱",
     hint: "Brassage et collecte",
     recurrenceRule: "FREQ=WEEKLY;BYDAY=SA",
     frequencyLabel: "Tous les samedis",
+    position: 4,
   },
 
   // ---------- Électroménager ----------
   {
-    id: "dishwasher-filter",
+    seedId: "dishwasher-filter",
     category: "appliance",
     title: "Nettoyer filtre lave-vaisselle",
     emoji: "🍽️",
     hint: "Filtre du fond + bras d'aspersion",
     recurrenceRule: "FREQ=MONTHLY",
     frequencyLabel: "Tous les mois",
+    position: 0,
   },
   {
-    id: "dishwasher-deep-clean",
+    seedId: "dishwasher-deep-clean",
     category: "appliance",
     title: "Cycle vide lave-vaisselle (vinaigre)",
     emoji: "🧪",
     hint: "Détartrage et désodorisation",
     recurrenceRule: "FREQ=MONTHLY;INTERVAL=3",
     frequencyLabel: "Tous les 3 mois",
+    position: 1,
   },
   {
-    id: "coffee-descale",
+    seedId: "coffee-descale",
     category: "appliance",
     title: "Détartrer cafetière / machine à café",
     emoji: "☕",
     hint: "Cycle détartrant complet",
     recurrenceRule: "FREQ=MONTHLY;INTERVAL=2",
     frequencyLabel: "Tous les 2 mois",
+    position: 2,
   },
   {
-    id: "kettle-descale",
+    seedId: "kettle-descale",
     category: "appliance",
     title: "Détartrer bouilloire",
     emoji: "🫖",
     hint: "Vinaigre blanc + rinçage",
     recurrenceRule: "FREQ=MONTHLY",
     frequencyLabel: "Tous les mois",
+    position: 3,
   },
   {
-    id: "fridge-clean",
+    seedId: "fridge-clean",
     category: "appliance",
     title: "Nettoyer le frigo",
     emoji: "🧊",
     hint: "Joints, étagères, bac à légumes",
     recurrenceRule: "FREQ=MONTHLY",
     frequencyLabel: "Tous les mois",
+    position: 4,
   },
   {
-    id: "freezer-defrost",
+    seedId: "freezer-defrost",
     category: "appliance",
     title: "Dégivrer congélateur",
     emoji: "❄️",
     hint: "Si pas de no-frost",
     recurrenceRule: "FREQ=YEARLY;INTERVAL=1;BYMONTH=9",
     frequencyLabel: "1 fois / an (septembre)",
+    position: 5,
   },
   {
-    id: "oven-clean",
+    seedId: "oven-clean",
     category: "appliance",
     title: "Nettoyer le four",
     emoji: "🔥",
     hint: "Auto-nettoyage ou bicarbonate",
     recurrenceRule: "FREQ=MONTHLY;INTERVAL=2",
     frequencyLabel: "Tous les 2 mois",
+    position: 6,
   },
   {
-    id: "washing-machine-clean",
+    seedId: "washing-machine-clean",
     category: "appliance",
     title: "Nettoyer machine à laver",
     emoji: "🧺",
     hint: "Joint hublot + cycle vide chaud",
     recurrenceRule: "FREQ=MONTHLY",
     frequencyLabel: "Tous les mois",
+    position: 7,
   },
   {
-    id: "dryer-filter",
+    seedId: "dryer-filter",
     category: "appliance",
     title: "Vider filtre sèche-linge",
     emoji: "🌀",
     hint: "Filtre à peluches",
     recurrenceRule: "FREQ=WEEKLY",
     frequencyLabel: "Toutes les semaines",
+    position: 8,
   },
 
   // ---------- Filtration & air ----------
   {
-    id: "hood-filter",
+    seedId: "hood-filter",
     category: "filter",
     title: "Nettoyer filtre hotte",
     emoji: "🌬️",
     hint: "Dégraissage filtre métallique",
     recurrenceRule: "FREQ=MONTHLY;INTERVAL=2",
     frequencyLabel: "Tous les 2 mois",
+    position: 0,
   },
   {
-    id: "vmc-clean",
+    seedId: "vmc-clean",
     category: "filter",
     title: "Nettoyer bouches VMC",
     emoji: "🌪️",
     hint: "Salle de bain + cuisine + WC",
     recurrenceRule: "FREQ=MONTHLY;INTERVAL=3",
     frequencyLabel: "Tous les 3 mois",
+    position: 1,
   },
   {
-    id: "air-purifier-filter",
+    seedId: "air-purifier-filter",
     category: "filter",
     title: "Changer filtre purificateur d'air",
     emoji: "🍃",
     hint: "Filtre HEPA",
     recurrenceRule: "FREQ=MONTHLY;INTERVAL=6",
     frequencyLabel: "Tous les 6 mois",
+    position: 2,
   },
 
   // ---------- Sécurité & légal ----------
   {
-    id: "smoke-detector-test",
+    seedId: "smoke-detector-test",
     category: "safety",
     title: "Tester détecteur de fumée",
     emoji: "🚨",
@@ -226,9 +226,10 @@ export const MAINTENANCE_PRESETS: MaintenancePreset[] = [
     recurrenceRule: "FREQ=MONTHLY",
     frequencyLabel: "Tous les mois",
     priority: true,
+    position: 0,
   },
   {
-    id: "smoke-detector-batteries",
+    seedId: "smoke-detector-batteries",
     category: "safety",
     title: "Remplacer piles détecteur de fumée",
     emoji: "🔋",
@@ -236,9 +237,10 @@ export const MAINTENANCE_PRESETS: MaintenancePreset[] = [
     recurrenceRule: "FREQ=YEARLY",
     frequencyLabel: "1 fois / an",
     priority: true,
+    position: 1,
   },
   {
-    id: "chimney-sweep",
+    seedId: "chimney-sweep",
     category: "safety",
     title: "Ramonage cheminée",
     emoji: "🔥",
@@ -246,9 +248,10 @@ export const MAINTENANCE_PRESETS: MaintenancePreset[] = [
     recurrenceRule: "FREQ=YEARLY;BYMONTH=10",
     frequencyLabel: "1 fois / an (oct.)",
     priority: true,
+    position: 2,
   },
   {
-    id: "boiler-maintenance",
+    seedId: "boiler-maintenance",
     category: "safety",
     title: "Entretien chaudière",
     emoji: "🛠️",
@@ -256,9 +259,10 @@ export const MAINTENANCE_PRESETS: MaintenancePreset[] = [
     recurrenceRule: "FREQ=YEARLY",
     frequencyLabel: "1 fois / an",
     priority: true,
+    position: 3,
   },
   {
-    id: "co-detector",
+    seedId: "co-detector",
     category: "safety",
     title: "Tester détecteur monoxyde",
     emoji: "⚠️",
@@ -266,107 +270,100 @@ export const MAINTENANCE_PRESETS: MaintenancePreset[] = [
     recurrenceRule: "FREQ=MONTHLY",
     frequencyLabel: "Tous les mois",
     priority: true,
+    position: 4,
   },
 
   // ---------- Saisonnier ----------
   {
-    id: "gutters-autumn",
+    seedId: "gutters-autumn",
     category: "seasonal",
     title: "Vidanger gouttières",
     emoji: "🍂",
     hint: "Évite débordements hivers",
     recurrenceRule: "FREQ=YEARLY;BYMONTH=11",
     frequencyLabel: "1 fois / an (novembre)",
+    position: 0,
   },
   {
-    id: "antifreeze-car",
+    seedId: "antifreeze-car",
     category: "seasonal",
     title: "Vérifier antigel voiture",
     emoji: "🚗",
     hint: "Lave-glace + liquide refroidissement",
     recurrenceRule: "FREQ=YEARLY;BYMONTH=11",
     frequencyLabel: "1 fois / an (novembre)",
+    position: 1,
   },
   {
-    id: "windows-bi-annual",
+    seedId: "windows-bi-annual",
     category: "seasonal",
     title: "Grand nettoyage vitres",
     emoji: "🪟",
     hint: "Intérieur + extérieur",
     recurrenceRule: "FREQ=MONTHLY;INTERVAL=6;BYMONTH=4,10",
     frequencyLabel: "Avril et octobre",
+    position: 2,
   },
   {
-    id: "mattress-flip",
+    seedId: "mattress-flip",
     category: "seasonal",
     title: "Retourner matelas",
     emoji: "🛏️",
     hint: "Évite l'affaissement",
     recurrenceRule: "FREQ=MONTHLY;INTERVAL=6",
     frequencyLabel: "Tous les 6 mois",
+    position: 3,
   },
   {
-    id: "wardrobe-rotation",
+    seedId: "wardrobe-rotation",
     category: "seasonal",
     title: "Rotation garde-robe saisons",
     emoji: "🧣",
     hint: "Été ↔ hiver",
     recurrenceRule: "FREQ=MONTHLY;INTERVAL=6;BYMONTH=5,10",
     frequencyLabel: "Mai et octobre",
+    position: 4,
   },
 
   // ---------- Extérieur & jardin ----------
   {
-    id: "lawn-mow",
+    seedId: "lawn-mow",
     category: "exterior",
     title: "Tondre la pelouse",
     emoji: "🌾",
     hint: "Période avril → octobre",
     recurrenceRule: "FREQ=WEEKLY",
     frequencyLabel: "Une fois par semaine",
+    position: 0,
   },
   {
-    id: "hedge-trim",
+    seedId: "hedge-trim",
     category: "exterior",
     title: "Tailler la haie",
     emoji: "🌳",
     hint: "Hors période nidification",
     recurrenceRule: "FREQ=MONTHLY;INTERVAL=4",
     frequencyLabel: "Tous les 4 mois",
+    position: 1,
   },
   {
-    id: "plants-water",
+    seedId: "plants-water",
     category: "exterior",
     title: "Arroser plantes d'intérieur",
     emoji: "🪴",
     hint: "À adapter par saison",
     recurrenceRule: "FREQ=WEEKLY;BYDAY=SU",
     frequencyLabel: "Tous les dimanches",
+    position: 2,
   },
   {
-    id: "facade-check",
+    seedId: "facade-check",
     category: "exterior",
     title: "Inspection façade et toiture",
     emoji: "🏠",
     hint: "Tuiles, joints, fissures",
     recurrenceRule: "FREQ=YEARLY",
     frequencyLabel: "1 fois / an",
+    position: 3,
   },
 ];
-
-/**
- * Retrouve un preset par son id, ou null si introuvable (preset
- * supprimé d'une ancienne version par exemple).
- */
-export function findPresetById(
-  id: string | undefined,
-): MaintenancePreset | null {
-  if (!id) return null;
-  return MAINTENANCE_PRESETS.find((p) => p.id === id) ?? null;
-}
-
-export function presetsByCategory(
-  cat: MaintenanceCategory,
-): MaintenancePreset[] {
-  return MAINTENANCE_PRESETS.filter((p) => p.category === cat);
-}
