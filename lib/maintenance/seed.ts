@@ -13,11 +13,6 @@ import {
 /**
  * Sprint 7 — seed les 32 presets par défaut SI la collection est vide
  * pour ce cocon. Idempotent : on lit 1 doc pour savoir s'il faut seeder.
- *
- * Utilise setMaintenancePreset (= setDoc avec un id stable) plutôt que
- * createMaintenancePreset (= addDoc avec id random) pour que les seedId
- * restent référençables si on veut re-seeder un preset supprimé un
- * jour.
  */
 export async function seedDefaultPresetsIfEmpty(
   householdId: string,
@@ -27,8 +22,26 @@ export async function seedDefaultPresetsIfEmpty(
     query(maintenancePresetsCollection(householdId), limit(1)),
   );
   if (!probe.empty) return 0;
-  // On séquence les écritures pour éviter de saturer Firestore avec 32
-  // setDoc en parallèle (et garder un comportement prévisible).
+  for (const preset of DEFAULT_MAINTENANCE_PRESETS) {
+    await writeOne(householdId, preset, userId);
+  }
+  return DEFAULT_MAINTENANCE_PRESETS.length;
+}
+
+/**
+ * Sprint 7 — UPSERT TOUS les presets par défaut. Écrase les valeurs
+ * existantes sur les seedId connus, et crée les manquants.
+ *
+ * À utiliser via un bouton « Synchroniser depuis les défauts » dans
+ * l'UI quand l'utilisateur veut réinitialiser ses presets standards
+ * (sans toucher aux customs, qui n'ont pas de seedId).
+ *
+ * Retourne le nombre de presets écrits.
+ */
+export async function forceResyncDefaultPresets(
+  householdId: string,
+  userId: string,
+): Promise<number> {
   for (const preset of DEFAULT_MAINTENANCE_PRESETS) {
     await writeOne(householdId, preset, userId);
   }

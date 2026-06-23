@@ -31,7 +31,10 @@ import {
   MAINTENANCE_CATEGORY_LABELS,
   MAINTENANCE_CATEGORY_ORDER,
 } from "@/lib/maintenance/presets";
-import { seedDefaultPresetsIfEmpty } from "@/lib/maintenance/seed";
+import {
+  forceResyncDefaultPresets,
+  seedDefaultPresetsIfEmpty,
+} from "@/lib/maintenance/seed";
 import type {
   MaintenanceCategory,
   MaintenancePreset,
@@ -58,6 +61,7 @@ export default function MaintenancePage() {
   const { showToast } = useToast();
   const [busy, setBusy] = useState<string | null>(null);
   const [seeding, setSeeding] = useState(false);
+  const [resyncing, setResyncing] = useState(false);
 
   // Seed lazy au premier accès si la collection est vide.
   useEffect(() => {
@@ -135,6 +139,30 @@ export default function MaintenancePage() {
       });
     } finally {
       setBusy(null);
+    }
+  }
+
+  async function handleResync() {
+    if (!household || !user || resyncing) return;
+    if (
+      !window.confirm(
+        "Synchroniser depuis les défauts ? Cela écrasera les presets standards (titre, emoji, fréquence, hint). Les presets personnalisés ne sont pas touchés.",
+      )
+    )
+      return;
+    setResyncing(true);
+    try {
+      const n = await forceResyncDefaultPresets(household.id, user.uid);
+      showToast({
+        message: `${n} presets synchronisés depuis les défauts`,
+      });
+    } catch (err) {
+      showToast({
+        message:
+          err instanceof Error ? err.message : "Synchronisation impossible",
+      });
+    } finally {
+      setResyncing(false);
     }
   }
 
@@ -252,6 +280,17 @@ export default function MaintenancePage() {
           <Plus size={14} strokeWidth={2.4} />
           Créer un preset personnalisé
         </Link>
+
+        <button
+          type="button"
+          onClick={handleResync}
+          disabled={resyncing}
+          className="flex items-center justify-center gap-1.5 px-4 py-2.5 text-[12px] font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
+        >
+          {resyncing
+            ? "Synchronisation…"
+            : "Synchroniser depuis les défauts"}
+        </button>
       </div>
     </main>
   );
